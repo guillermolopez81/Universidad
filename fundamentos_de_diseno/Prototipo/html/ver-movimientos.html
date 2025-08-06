@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ver Movimientos - Sistema de Inventarios</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Back Button -->
+    <button class="back-btn" onclick="window.location.href='index.html'" title="Volver al menú principal">
+        ←
+    </button>
+
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>📊 HISTORIAL DE MOVIMIENTOS</h1>
+            <p>Registro completo de entradas y salidas del inventario</p>
+        </div>
+
+        <!-- Alert Container -->
+        <div id="alert-container"></div>
+
+        <!-- Filtros y Controles -->
+        <div class="form-container">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
+                <!-- Filtro por artículo -->
+                <div class="form-group">
+                    <label for="filtro-articulo">Filtrar por Artículo</label>
+                    <select id="filtro-articulo" onchange="aplicarFiltros()">
+                        <option value="">Todos los artículos</option>
+                    </select>
+                </div>
+
+                <!-- Filtro por tipo -->
+                <div class="form-group">
+                    <label for="filtro-tipo">Tipo de Movimiento</label>
+                    <select id="filtro-tipo" onchange="aplicarFiltros()">
+                        <option value="">Todos</option>
+                        <option value="ENTRADA">📥 Entradas</option>
+                        <option value="SALIDA">📤 Salidas</option>
+                    </select>
+                </div>
+
+                <!-- Filtro por fecha -->
+                <div class="form-group">
+                    <label for="filtro-fecha-desde">Desde</label>
+                    <input type="date" id="filtro-fecha-desde" onchange="aplicarFiltros()">
+                </div>
+
+                <div class="form-group">
+                    <label for="filtro-fecha-hasta">Hasta</label>
+                    <input type="date" id="filtro-fecha-hasta" onchange="aplicarFiltros()">
+                </div>
+
+                <!-- Filtro por usuario -->
+                <div class="form-group">
+                    <label for="filtro-usuario">Usuario</label>
+                    <select id="filtro-usuario" onchange="aplicarFiltros()">
+                        <option value="">Todos los usuarios</option>
+                    </select>
+                </div>
+
+                <!-- Ordenamiento -->
+                <div class="form-group">
+                    <label for="ordenar-por">Ordenar por</label>
+                    <select id="ordenar-por" onchange="ordenarMovimientos()">
+                        <option value="fecha-desc">Fecha (Más reciente)</option>
+                        <option value="fecha-asc">Fecha (Más antiguo)</option>
+                        <option value="articulo-asc">Artículo (A-Z)</option>
+                        <option value="articulo-desc">Artículo (Z-A)</option>
+                        <option value="cantidad-desc">Cantidad (Mayor a Menor)</option>
+                        <option value="cantidad-asc">Cantidad (Menor a Mayor)</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Búsqueda rápida -->
+            <div class="form-group">
+                <label for="busqueda-rapida">Búsqueda Rápida</label>
+                <input type="text" id="busqueda-rapida" placeholder="Buscar por código, motivo o usuario..."
+                       onkeyup="aplicarFiltros()">
+            </div>
+
+            <!-- Acciones -->
+            <div style="display: flex; gap: 10px; flex-wrap: wrap; justify-content: space-between; align-items: center;">
+                <div>
+                    <button class="btn btn-secondary" onclick="limpiarFiltros()">
+                        🔄 Limpiar Filtros
+                    </button>
+                    <button class="btn" onclick="actualizarMovimientos()">
+                        🔄 Actualizar
+                    </button>
+                    <button class="btn btn-success" onclick="establecerFechaHoy()">
+                        📅 Movimientos de Hoy
+                    </button>
+                </div>
+                <div>
+                    <button class="btn btn-warning" onclick="exportarMovimientos('csv')">
+                        📊 Exportar CSV
+                    </button>
+                    <button class="btn" onclick="exportarMovimientos('json')">
+                        💾 Exportar JSON
+                    </button>
+                    <button class="btn btn-secondary" onclick="imprimirMovimientos()">
+                        🖨️ Imprimir
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Estadísticas de Movimientos -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-number" id="total-movimientos">0</div>
+                <div class="stat-label">Total Movimientos</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="total-entradas" style="color: #27ae60;">0</div>
+                <div class="stat-label">📥 Entradas</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="total-salidas" style="color: #e74c3c;">0</div>
+                <div class="stat-label">📤 Salidas</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="movimientos-mostrados">0</div>
+                <div class="stat-label">Movimientos Mostrados</div>
+            </div>
+        </div>
+
+        <!-- Resumen por Período -->
+        <div class="card">
+            <div class="card-header">
+                <h3>Resumen del Período Seleccionado</h3>
+            </div>
+            <div id="resumen-periodo">
+                <p>Seleccione un rango de fechas para ver el resumen</p>
+            </div>
+        </div>
+
+        <!-- Tabla de Movimientos -->
+        <div class="table-container">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h3>Historial de Movimientos</h3>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <label for="items-por-pagina">Mostrar:</label>
+                    <select id="items-por-pagina" onchange="cambiarItemsPorPagina()">
+                        <option value="25" selected>25</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                        <option value="all">Todos</option>
+                    </select>
+                    <span>por página</span>
+                </div>
+            </div>
+
+            <div id="tabla-movimientos">
+                <p>Cargando movimientos...</p>
+            </div>
+
+            <!-- Paginación -->
+            <div id="paginacion" style="display: flex; justify-content: center; align-items: center; gap: 10px; margin-top: 20px;">
+            </div>
+        </div>
+
+        <!-- Gráfico de Movimientos (simulado) -->
+        <div class="card">
+            <div class="card-header">
+                <h3>Tendencia de Movimientos</h3>
+            </div>
+            <div id="grafico-movimientos">
+                <div style="text-align: center; padding: 40px; color: #666;">
+                    📈 Gráfico de tendencias (funcionalidad de demostración)
+                    <br><br>
+                    <div style="display: flex; justify-content: space-around; align-items: end; height: 100px; border-bottom: 2px solid #ddd;">
+                        <div style="width: 30px; background: #27ae60; height: 60px; display: flex; align-items: end; justify-content: center; color: white; font-size: 0.8em;">E</div>
+                        <div style="width: 30px; background: #e74c3c; height: 40px; display: flex; align-items: end; justify-content: center; color: white; font-size: 0.8em;">S</div>
+                        <div style="width: 30px; background: #27ae60; height: 80px; display: flex; align-items: end; justify-content: center; color: white; font-size: 0.8em;">E</div>
+                        <div style="width: 30px; background: #e74c3c; height: 30px; display: flex; align-items: end; justify-content: center; color: white; font-size: 0.8em;">S</div>
+                        <div style="width: 30px; background: #27ae60; height: 70px; display: flex; align-items: end; justify-content: center; color: white; font-size: 0.8em;">E</div>
+                    </div>
+                    <small>E = Entradas, S = Salidas</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <script>
+        let movimientosFiltrados = [];
+        let paginaActual = 1;
+        let itemsPorPagina = 25;
+
+        // Inicializar página
+        function inicializar() {
+            cargarFiltros();
+            actualizarMovimientos();
+            establecerFechasPorDefecto();
+        }
+
+        // Cargar opciones de filtros
+        function cargarFiltros() {
+            const filtroArticulo = document.getElementById('filtro-articulo');
+            const filtroUsuario = document.getElementById('filtro-usuario');
+            
+            // Limpiar filtros
+            filtroArticulo.innerHTML = '<option value="">Todos los artículos</option>';
+            filtroUsuario.innerHTML = '<option value="">Todos los usuarios</option>';
+            
+            const articulos = new Set();
+            const usuarios = new Set();
+            
+            inventario.movimientos.forEach(mov => {
+                articulos.add(mov.codigoArticulo);
+                usuarios.add(mov.usuario);
+            });
+            
+            // Cargar artículos
+            Array.from(articulos).sort().forEach(codigo => {
+                const articulo = obtenerArticulo(codigo);
+                const option = document.createElement('option');
+                option.value = codigo;
+                option.textContent = articulo ? `${codigo} - ${articulo.nombre}` : codigo;
+                filtroArticulo.appendChild(option);
+            });
+            
+            // Cargar usuarios
+            Array.from(usuarios).sort().forEach(usuario => {
+                const option = document.createElement('option');
+                option.value = usuario;
+                option.textContent = usuario;
+                filtroUsuario.appendChild(option);
+            });
+        }
+
+        // Establecer fechas por defecto (últimos 30 días)
+        function establecerFechasPorDefecto() {
+            const hoy = new Date();
+            const hace30Dias = new Date();
+            hace30Dias.setDate(hoy.getDate() - 30);
+            
+            document.getElementById('filtro-fecha-hasta').value = hoy.toISOString().split('T')[0];
+            document.getElementById('filtro-fecha-desde').value = hace30Dias.toISOString().split('T')[0];
+        }
+
+        // Establecer fecha de hoy
+        function establecerFechaHoy() {
+            const hoy = new Date().toISOString().split('T')[0];
+            document.getElementById('filtro-fecha-desde').value = hoy;
+            document.getElementById('filtro-fecha-hasta').value = hoy;
+            aplicarFiltros();
+        }
+
+        // Actualizar movimientos
+        function actualizarMovimientos() {
+            movimientosFiltrados = [...inventario.movimientos];
+            ordenarMovimientos();
+            aplicarFiltros();
+        }
+
+        // Aplicar filtros
+        function aplicarFiltros() {
+            const filtroArticulo = document.getElementById('filtro-articulo').value;
+            const filtroTipo = document.getElementById('filtro-tipo').value;
+            const fechaDesde = document.getElementById('filtro-fecha-desde').value;
+            const fechaHasta = document.getElementById('filtro-fecha-hasta').value;
+            const filtroUsuario = document.getElementById('filtro-usuario').value;
+            const busqueda = document.getElementById('busqueda-rapida').value.toLowerCase();
+            
+            movimientosFiltrados = inventario.movimientos.filter(mov => {
+                // Filtro por artículo
+                if (filtroArticulo && mov.codigoArticulo !== filtroArticulo) return false;
+                
+                // Filtro por tipo
+                if (filtroTipo && mov.tipo !== filtroTipo) return false;
+                
+                // Filtro por usuario
+                if (filtroUsuario && mov.usuario !== filtroUsuario) return false;
+                
+                // Filtro por fecha
+                const fechaMov = new Date(mov.fechaHora).toISOString().split('T')[0];
+                if (fechaDesde && fechaMov < fechaDesde) return false;
+                if (fechaHasta && fechaMov > fechaHasta) return false;
+                
+                // Búsqueda rápida
+                if (busqueda) {
+                    const coincide = mov.codigoArticulo.toLowerCase().includes(busqueda) ||
+                                   mov.motivo.toLowerCase().includes(busqueda) ||
+                                   mov.usuario.toLowerCase().includes(busqueda);
+                    if (!coincide) return false;
+                }
+                
+                return true;
+            });
+            
+            paginaActual = 1;
+            mostrarMovimientos();
+            actualizarEstadisticas();
+            mostrarResumenPeriodo();
+        }
+
+        // Ordenar movimientos
+        function ordenarMovimientos() {
+            const ordenarPor = document.getElementById('ordenar-por').value;
+            
+            movimientosFiltrados.sort((a, b) => {
+                switch (ordenarPor) {
+                    case 'fecha-asc':
+                        return new Date(a.fechaHora) - new Date(b.fechaHora);
+                    case 'articulo-asc':
+                        return a.codigoArticulo.localeCompare(b.codigoArticulo);
+                    case 'articulo-desc':
+                        return b.codigoArticulo.localeCompare(a.codigoArticulo);
+                    case 'cantidad-asc':
+                        return a.cantidad - b.cantidad;
+                    case 'cantidad-desc':
+                        return b.cantidad - a.cantidad;
+                    default: // fecha-desc
+                        return new Date(b.fechaHora) - new Date(a.fechaHora);
+                }
+            });
+            
+            mostrarMovimientos();
+        }
+
+        // Mostrar movimientos con paginación
+        function mostrarMovimientos() {
+            const tablaContainer = document.getElementById('tabla-movimientos');
+            
+            if (movimientosFiltrados.length === 0) {
+                tablaContainer.innerHTML = '<p>No se encontraron movimientos con los filtros aplicados.</p>';
+                document.getElementById('paginacion').innerHTML = '';
+                return;
+            }
+            
+            // Calcular paginación
+            const totalItems = movimientosFiltrados.length;
+            const totalPaginas = itemsPorPagina === 'all' ? 1 : Math.ceil(totalItems / itemsPorPagina);
+            const inicio = itemsPorPagina === 'all' ? 0 : (paginaActual - 1) * itemsPorPagina;
+            const fin = itemsPorPagina === 'all' ? totalItems : inicio + itemsPorPagina;
+            
+            const movimientosPagina = movimientosFiltrados.slice(inicio, fin);
+            
+            // Generar tabla
+            let html = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Fecha/Hora</th>
+                            <th>Artículo</th>
+                            <th>Tipo</th>
+                            <th>Cantidad</th>
+                            <th>Motivo</th>
+                            <th>Usuario</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            movimientosPagina.forEach((mov, index) => {
+                const numeroFila = inicio + index + 1;
+                const fecha = new Date(mov.fechaHora).toLocaleString();
+                const tipoClass = mov.tipo === 'ENTRADA' ? 'success' : 'danger';
+                const tipoIcon = mov.tipo === 'ENTRADA' ? '📥' : '📤';
+                const signo = mov.tipo === 'ENTRADA' ? '+' : '-';
+                const colorCantidad = mov.tipo === 'ENTRADA' ? '#27ae60' : '#e74c3c';
+                
+                const articulo = obtenerArticulo(mov.codigoArticulo);
+                const nombreArticulo = articulo ? articulo.nombre : 'Artículo no encontrado';
+                
+                html += `
+                    <tr>
+                        <td>${numeroFila}</td>
+                        <td>${fecha}</td>
+                        <td>
+                            <strong>${mov.codigoArticulo}</strong><br>
+                            <small style="color: #666;">${nombreArticulo}</small>
+                        </td>
+                        <td>
+                            <span class="btn btn-${tipoClass}" style="padding: 4px 8px; font-size: 0.8em;">
+                                ${tipoIcon} ${mov.tipo}
+                            </span>
+                        </td>
+                        <td style="color: ${colorCantidad}; font-weight: bold; text-align: right;">
+                            ${signo}${mov.cantidad}
+                        </td>
+                        <td>${mov.motivo}</td>
+                        <td>${mov.usuario}</td>
+                        <td>
+                            <button class="btn btn-secondary" onclick="verDetalleMovimiento('${mov.id}')" 
+                                    style="padding: 5px 10px; font-size: 0.8em;">
+                                👁️ Ver
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+            
+            html += '</tbody></table>';
+            tablaContainer.innerHTML = html;
+            
+            // Generar paginación
+            generarPaginacion(totalPaginas, totalItems);
+        }
+
+        // Generar controles de paginación
+        function generarPaginacion(totalPaginas, totalItems) {
+            const paginacionContainer = document.getElementById('paginacion');
+            
+            if (totalPaginas <= 1) {
+                paginacionContainer.innerHTML = '';
+                return;
+            }
+            
+            let html = `
+                <button class="btn btn-secondary" onclick="cambiarPagina(${paginaActual - 1})" 
+                        ${paginaActual === 1 ? 'disabled' : ''}>
+                    ← Anterior
+                </button>
+                <span style="margin: 0 15px;">
+                    Página ${paginaActual} de ${totalPaginas} (${totalItems} movimientos)
+                </span>
+                <button class="btn btn-secondary" onclick="cambiarPagina(${paginaActual + 1})" 
+                        ${paginaActual === totalPaginas ? 'disabled' : ''}>
+                    Siguiente →
+                </button>
+            `;
+            
+            paginacionContainer.innerHTML = html;
+        }
+
+        // Cambiar página
+        function cambiarPagina(nuevaPagina) {
+            const totalPaginas = Math.ceil(movimientosFiltrados.length / itemsPorPagina);
+            if (nuevaPagina >= 1 && nuevaPagina <= totalPaginas) {
+                paginaActual = nuevaPagina;
+                mostrarMovimientos();
+            }
+        }
+
+        // Cambiar items por página
+        function cambiarItemsPorPagina() {
+            const valor = document.getElementById('items-por-pagina').value;
+            itemsPorPagina = valor === 'all' ? 'all' : parseInt(valor);
+            paginaActual = 1;
+            mostrarMovimientos();
+        }
+
+        // Actualizar estadísticas
+        function actualizarEstadisticas() {
+            const totalMovimientos = movimientosFiltrados.length;
+            const totalEntradas = movimientosFiltrados.filter(mov => mov.tipo === 'ENTRADA').length;
+            const totalSalidas = movimientosFiltrados.filter(mov => mov.tipo === 'SALIDA').length;
+            
+            document.getElementById('total-movimientos').textContent = inventario.movimientos.length;
+            document.getElementById('total-entradas').textContent = totalEntradas;
+            document.getElementById('total-salidas').textContent = totalSalidas;
+            document.getElementById('movimientos-mostrados').textContent = totalMovimientos;
+        }
+
+        // Mostrar resumen del período
+        function mostrarResumenPeriodo() {
+            const resumenContainer = document.getElementById('resumen-periodo');
+            
+            if (movimientosFiltrados.length === 0) {
+                resumenContainer.innerHTML = '<p>No hay movimientos en el período seleccionado.</p>';
+                return;
+            }
+            
+            const entradas = movimientosFiltrados.filter(mov => mov.tipo === 'ENTRADA');
+            const salidas = movimientosFiltrados.filter(mov => mov.tipo === 'SALIDA');
+            
+            const cantidadEntradas = entradas.reduce((sum, mov) => sum + mov.cantidad, 0);
+            const cantidadSalidas = salidas.reduce((sum, mov) => sum + mov.cantidad, 0);
+            
+            const fechaDesde = document.getElementById('filtro-fecha-desde').value;
+            const fechaHasta = document.getElementById('filtro-fecha-hasta').value;
+            
+            resumenContainer.innerHTML = `
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-number" style="color: #3498db;">${movimientosFiltrados.length}</div>
+                        <div class="stat-label">Total Movimientos</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" style="color: #27ae60;">${entradas.length}</div>
+                        <div class="stat-label">Entradas</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" style="color: #e74c3c;">${salidas.length}</div>
+                        <div class="stat-label">Salidas</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" style="color: #f39c12;">${(cantidadEntradas - cantidadSalidas).toFixed(2)}</div>
+                        <div class="stat-label">Balance Neto</div>
+                    </div>
+                </div>
+                <p style="text-align: center; margin-top: 15px; color: #666;">
+                    <strong>Período:</strong> ${fechaDesde || 'Sin límite'} - ${fechaHasta || 'Sin límite'}
+                </p>
+            `;
+        }
+
+        // Ver detalle del movimiento
+        function verDetalleMovimiento(movimientoId) {
+            const movimiento = inventario.movimientos.find(mov => mov.id === movimientoId);
+            if (!movimiento) return;
+            
+            const articulo = obtenerArticulo(movimiento.codigoArticulo);
+            const fecha = new Date(movimiento.fechaHora).toLocaleString();
+            
+            const ventanaDetalle = window.open('', '_blank', 'width=600,height=500');
+            ventanaDetalle.document.write(`
+                <html>
+                    <head>
+                        <title>Detalle del Movimiento</title>
+                        <link rel="stylesheet" href="styles.css">
+                    </head>
+                    <body>
+                        <div class="container">
+                            <div class="header">
+                                <h1>📋 Detalle del Movimiento</h1>
+                            </div>
+                            <div class="card">
+                                <h3>Información del Movimiento</h3>
+                                <p><strong>ID:</strong> ${movimiento.id}</p>
+                                <p><strong>Fecha/Hora:</strong> ${fecha}</p>
+                                <p><strong>Tipo:</strong> ${movimiento.tipo === 'ENTRADA' ? '📥 Entrada' : '📤 Salida'}</p>
+                                <p><strong>Cantidad:</strong> ${movimiento.cantidad}</p>
+                                <p><strong>Motivo:</strong> ${movimiento.motivo}</p>
+                                <p><strong>Usuario:</strong> ${movimiento.usuario}</p>
+                            </div>
+                            <div class="card">
+                                <h3>Información del Artículo</h3>
+                                <p><strong>Código:</strong> ${movimiento.codigoArticulo}</p>
+                                <p><strong>Nombre:</strong> ${articulo ? articulo.nombre : 'Artículo no encontrado'}</p>
+                                <p><strong>Stock Actual:</strong> ${articulo ? articulo.cantidad : 'N/A'}</p>
+                            </div>
+                            <button onclick="window.close()" class="btn">Cerrar</button>
+                        </div>
+                    </body>
+                </html>
+            `);
+        }
+
+        // Limpiar filtros
+        function limpiarFiltros() {
+            document.getElementById('filtro-articulo').value = '';
+            document.getElementById('filtro-tipo').value = '';
+            document.getElementById('filtro-fecha-desde').value = '';
+            document.getElementById('filtro-fecha-hasta').value = '';
+            document.getElementById('filtro-usuario').value = '';
+            document.getElementById('busqueda-rapida').value = '';
+            document.getElementById('ordenar-por').value = 'fecha-desc';
+            aplicarFiltros();
+        }
+
+        // Exportar movimientos
+        function exportarMovimientos(formato) {
+            if (movimientosFiltrados.length === 0) {
+                mostrarAlerta('No hay movimientos para exportar', 'warning');
+                return;
+            }
+            
+            const fecha = new Date().toISOString().split('T')[0];
+            
+            if (formato === 'csv') {
+                let csv = 'Fecha/Hora,Artículo,Tipo,Cantidad,Motivo,Usuario\n';
+                movimientosFiltrados.forEach(mov => {
+                    const fecha = new Date(mov.fechaHora).toLocaleString();
+                    csv += `"${fecha}","${mov.codigoArticulo}","${mov.tipo}",${mov.cantidad},"${mov.motivo}","${mov.usuario}"\n`;
+                });
+                
+                const blob = new Blob([csv], { type: 'text/csv' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `movimientos_${fecha}.csv`;
+                a.click();
+                URL.revokeObjectURL(url);
+            } else if (formato === 'json') {
+                const datos = {
+                    fecha_exportacion: new Date().toISOString(),
+                    total_movimientos: movimientosFiltrados.length,
+                    movimientos: movimientosFiltrados
+                };
+                
+                const blob = new Blob([JSON.stringify(datos, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `movimientos_${fecha}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+            }
+            
+            mostrarAlerta(`Movimientos exportados en formato ${formato.toUpperCase()}`, 'success');
+        }
+
+        // Imprimir movimientos
+        function imprimirMovimientos() {
+            const contenidoImprimir = document.getElementById('tabla-movimientos').innerHTML;
+            const ventanaImprimir = window.open('', '_blank');
+            
+            ventanaImprimir.document.write(`
+                <html>
+                    <head>
+                        <title>Historial de Movimientos - ${new Date().toLocaleDateString()}</title>
+                        <style>
+                            body { font-family: Arial, sans-serif; }
+                            table { width: 100%; border-collapse: collapse; }
+                            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                            th { background-color: #f2f2f2; }
+                            h1 { text-align: center; }
+                        </style>
+                    </head>
+                    <body>
+                        <h1>Historial de Movimientos</h1>
+                        <p>Fecha: ${new Date().toLocaleDateString()}</p>
+                        <p>Total de movimientos: ${movimientosFiltrados.length}</p>
+                        ${contenidoImprimir}
+                    </body>
+                </html>
+            `);
+            
+            ventanaImprimir.document.close();
+            ventanaImprimir.print();
+        }
+
+        // Inicialización
+        document.addEventListener('DOMContentLoaded', inicializar);
+    </script>
+</body>
+</html>

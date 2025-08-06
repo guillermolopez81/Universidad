@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Salida de Mercancía - Sistema de Inventarios</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Back Button -->
+    <button class="back-btn" onclick="window.location.href='index.html'" title="Volver al menú principal">
+        ←
+    </button>
+
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>📤 SALIDA DE MERCANCÍA</h1>
+            <p>Registrar retiro de productos del inventario</p>
+        </div>
+
+        <!-- Alert Container -->
+        <div id="alert-container"></div>
+
+        <!-- Form -->
+        <div class="form-container">
+            <form id="form-salida-mercancia" onsubmit="return procesarSalida(event)">
+                <div class="form-group">
+                    <label for="codigo-articulo">Código del Artículo *</label>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="text" id="codigo-articulo" name="codigo-articulo" required 
+                               placeholder="Ingrese el código del artículo"
+                               style="text-transform: uppercase; flex: 1;"
+                               list="articulos-list">
+                        <button type="button" class="btn btn-secondary" onclick="buscarArticulo()">
+                            🔍 Buscar
+                        </button>
+                    </div>
+                    <datalist id="articulos-list"></datalist>
+                </div>
+
+                <!-- Información del Artículo -->
+                <div id="info-articulo" class="card" style="display: none; margin-bottom: 20px;">
+                    <div class="card-header">
+                        <h3>Información del Artículo</h3>
+                    </div>
+                    <div id="detalle-articulo"></div>
+                </div>
+
+                <div class="form-group">
+                    <label for="cantidad">Cantidad a Retirar *</label>
+                    <input type="number" id="cantidad" name="cantidad" required 
+                           placeholder="0" 
+                           min="0.01" 
+                           step="0.01">
+                    <small id="unidad-info" style="color: #666;"></small>
+                    <div id="stock-warning" style="display: none; color: #e74c3c; font-weight: bold; margin-top: 5px;">
+                        ⚠️ La cantidad solicitada excede el stock disponible
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="motivo">Motivo de la Salida</label>
+                    <select id="motivo-select" onchange="toggleMotivoCustom()">
+                        <option value="Salida de mercancía">Salida de mercancía</option>
+                        <option value="Venta">Venta</option>
+                        <option value="Devolución a proveedor">Prestamo a cliente</option>
+                        <option value="Ajuste de inventario">Ajuste de inventario</option>
+
+                        <option value="Daño">Defectuoso o dañado</option>
+                        <option value="custom">Otro (especificar)</option>
+                    </select>
+                </div>
+
+                <div class="form-group" id="motivo-custom-group" style="display: none;">
+                    <label for="motivo-custom">Especificar Motivo</label>
+                    <input type="text" id="motivo-custom" placeholder="Describa el motivo de la salida">
+                </div>
+
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button type="submit" class="btn btn-danger" id="btn-registrar">
+                        ✅ Registrar Salida
+                    </button>
+                    <button type="button" class="btn btn-secondary" onclick="limpiarFormulario('form-salida-mercancia')">
+                        🔄 Limpiar Formulario
+                    </button>
+                    <button type="button" class="btn" onclick="window.location.href='index.html'">
+                        🏠 Volver al Menú
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Calculadora de Inventario -->
+        <div class="card">
+            <div class="card-header">
+                <h3>Calculadora de Inventario</h3>
+            </div>
+            <div id="calculadora-stock">
+                <p style="color: #666; font-style: italic;">Seleccione un artículo para ver el cálculo del nuevo inventario</p>
+            </div>
+        </div>
+
+        <!-- Verificación de Inventario -->
+        <div class="card">
+            <div class="card-header">
+                <h3>Verificación de Disponibilidad</h3>
+            </div>
+            <div id="verificacion-stock">
+                <p style="color: #666; font-style: italic;">Ingrese la cantidad para verificar disponibilidad</p>
+            </div>
+        </div>
+
+        <!-- Salidas Recientes -->
+        <div class="card">
+            <div class="card-header">
+                <h3>Salidas Recientes</h3>
+            </div>
+            <div id="salidas-recientes">
+                <p>Cargando salidas recientes...</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <script>
+        let articuloSeleccionado = null;
+
+        // Cargar lista de artículos para autocompletado
+        function cargarListaArticulos() {
+            const datalist = document.getElementById('articulos-list');
+            datalist.innerHTML = '';
+            
+            inventario.articulos.forEach(articulo => {
+                const option = document.createElement('option');
+                option.value = articulo.codigo;
+                option.textContent = `${articulo.codigo} - ${articulo.nombre} (Stock: ${articulo.cantidad})`;
+                datalist.appendChild(option);
+            });
+        }
+
+        // Buscar artículo
+        function buscarArticulo() {
+            const codigo = document.getElementById('codigo-articulo').value.trim().toUpperCase();
+            if (!codigo) {
+                mostrarAlerta('Ingrese un código de artículo', 'warning');
+                return;
+            }
+
+            const articulo = obtenerArticulo(codigo);
+            if (articulo) {
+                mostrarInfoArticulo(articulo);
+                articuloSeleccionado = articulo;
+                actualizarCalculadora();
+                verificarDisponibilidad();
+            } else {
+                mostrarAlerta(`No se encontró un artículo con el código ${codigo}`, 'error');
+                ocultarInfoArticulo();
+                articuloSeleccionado = null;
+            }
+        }
+
+        // Mostrar información del artículo
+        function mostrarInfoArticulo(articulo) {
+            const infoContainer = document.getElementById('info-articulo');
+            const detalleContainer = document.getElementById('detalle-articulo');
+            
+            const stockStatus = articulo.cantidad > 0 ? 'Disponible' : 'Sin Stock';
+            const stockColor = articulo.cantidad > 0 ? '#27ae60' : '#e74c3c';
+            const stockIcon = articulo.cantidad > 0 ? '✅' : '❌';
+            
+            detalleContainer.innerHTML = `
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                    <div>
+                        <strong>Código:</strong><br>
+                        <span style="font-size: 1.2em; color: #3498db;">${articulo.codigo}</span>
+                    </div>
+                    <div>
+                        <strong>Nombre:</strong><br>
+                        ${articulo.nombre}
+                    </div>
+                    <div>
+                        <strong>Stock Actual:</strong><br>
+                        <span style="font-size: 1.2em; color: ${stockColor};">
+                            ${stockIcon} ${articulo.cantidad} ${articulo.unidadMedida}
+                        </span><br>
+                        <small style="color: ${stockColor};">${stockStatus}</small>
+                    </div>
+                    <div>
+                        <strong>Descripción:</strong><br>
+                        ${articulo.descripcion || 'Sin descripción'}
+                    </div>
+                </div>
+            `;
+            
+            infoContainer.style.display = 'block';
+            
+            // Actualizar información de unidad
+            document.getElementById('unidad-info').textContent = `Unidad: ${articulo.unidadMedida} | Disponible: ${articulo.cantidad}`;
+            
+            // Configurar límite máximo en el input
+            document.getElementById('cantidad').max = articulo.cantidad;
+        }
+
+        // Ocultar información del artículo
+        function ocultarInfoArticulo() {
+            document.getElementById('info-articulo').style.display = 'none';
+            document.getElementById('unidad-info').textContent = '';
+            document.getElementById('cantidad').removeAttribute('max');
+        }
+
+        // Toggle motivo personalizado
+        function toggleMotivoCustom() {
+            const select = document.getElementById('motivo-select');
+            const customGroup = document.getElementById('motivo-custom-group');
+            
+            if (select.value === 'custom') {
+                customGroup.style.display = 'block';
+                document.getElementById('motivo-custom').required = true;
+            } else {
+                customGroup.style.display = 'none';
+                document.getElementById('motivo-custom').required = false;
+            }
+        }
+
+        // Actualizar calculadora de Inventario
+        function actualizarCalculadora() {
+            const calculadora = document.getElementById('calculadora-stock');
+            const cantidad = parseFloat(document.getElementById('cantidad').value) || 0;
+            
+            if (!articuloSeleccionado) {
+                calculadora.innerHTML = '<p style="color: #666; font-style: italic;">Seleccione un artículo para ver el cálculo del nuevo Inventario</p>';
+                return;
+            }
+            
+            const stockActual = articuloSeleccionado.cantidad;
+            const nuevoStock = stockActual - cantidad;
+            const esValido = cantidad <= stockActual && cantidad > 0;
+            
+            const colorNuevoStock = esValido ? (nuevoStock > 0 ? '#27ae60' : '#f39c12') : '#e74c3c';
+            
+            calculadora.innerHTML = `
+                <div style="background: rgba(231, 76, 60, 0.1); padding: 15px; border-radius: 8px; border: 2px dashed #e74c3c;">
+                    <h4 style="color: #2c3e50; margin-bottom: 10px;">Cálculo de Nuevo Invnetario</h4>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; text-align: center;">
+                        <div>
+                            <div style="font-size: 1.5em; color: #7f8c8d;">${stockActual}</div>
+                            <small>Inventario Actual</small>
+                        </div>
+                        <div style="font-size: 2em; color: #e74c3c;">-</div>
+                        <div>
+                            <div style="font-size: 1.5em; color: #f39c12;">${cantidad}</div>
+                            <small>Cantidad a Retirar</small>
+                        </div>
+                        <div style="font-size: 2em; color: #e74c3c;">=</div>
+                        <div>
+                            <div style="font-size: 1.5em; color: ${colorNuevoStock}; font-weight: bold;">${nuevoStock}</div>
+                            <small>Nuevo Inventario</small>
+                        </div>
+                    </div>
+                    <p style="text-align: center; margin-top: 10px; color: #666;">
+                        Unidad: ${articuloSeleccionado.unidadMedida}
+                    </p>
+                    ${!esValido && cantidad > 0 ? '<p style="text-align: center; color: #e74c3c; font-weight: bold;">⚠️ Inventario insuficiente</p>' : ''}
+                </div>
+            `;
+        }
+
+        // Verificar disponibilidad
+        function verificarDisponibilidad() {
+            const verificacion = document.getElementById('verificacion-stock');
+            const cantidad = parseFloat(document.getElementById('cantidad').value) || 0;
+            
+            if (!articuloSeleccionado || cantidad <= 0) {
+                verificacion.innerHTML = '<p style="color: #666; font-style: italic;">Ingrese la cantidad para verificar disponibilidad</p>';
+                return;
+            }
+            
+            const stockActual = articuloSeleccionado.cantidad;
+            const esDisponible = cantidad <= stockActual;
+            const porcentajeUso = ((cantidad / stockActual) * 100).toFixed(1);
+            
+            let statusHtml = '';
+            let statusColor = '';
+            let statusIcon = '';
+            
+            if (esDisponible) {
+                if (porcentajeUso <= 50) {
+                    statusColor = '#27ae60';
+                    statusIcon = '✅';
+                    statusHtml = 'Inventario suficiente - Operación segura';
+                } else if (porcentajeUso <= 80) {
+                    statusColor = '#f39c12';
+                    statusIcon = '⚠️';
+                    statusHtml = 'Inventario disponible - Considere reabastecer pronto';
+                } else {
+                    statusColor = '#e67e22';
+                    statusIcon = '⚠️';
+                    statusHtml = 'Inventario disponible - Inventario crítico después de la operación';
+                }
+            } else {
+                statusColor = '#e74c3c';
+                statusIcon = '❌';
+                statusHtml = 'Inventario insuficiente - Operación no permitida';
+            }
+            
+            verificacion.innerHTML = `
+                <div style="background: rgba(${statusColor === '#27ae60' ? '39, 174, 96' : statusColor === '#f39c12' ? '243, 156, 18' : '231, 76, 60'}, 0.1); padding: 15px; border-radius: 8px; border: 2px solid ${statusColor};">
+                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                        <span style="font-size: 1.5em;">${statusIcon}</span>
+                        <span style="color: ${statusColor}; font-weight: bold;">${statusHtml}</span>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; text-align: center;">
+                        <div>
+                            <div style="font-size: 1.2em; color: #666;">Solicitado</div>
+                            <div style="font-size: 1.5em; font-weight: bold;">${cantidad}</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 1.2em; color: #666;">Disponible</div>
+                            <div style="font-size: 1.5em; font-weight: bold;">${stockActual}</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 1.2em; color: #666;">% de Uso</div>
+                            <div style="font-size: 1.5em; font-weight: bold; color: ${statusColor};">${porcentajeUso}%</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Procesar salida
+        function procesarSalida(event) {
+            event.preventDefault();
+            
+            const codigo = document.getElementById('codigo-articulo').value.trim().toUpperCase();
+            const cantidad = document.getElementById('cantidad').value;
+            const motivoSelect = document.getElementById('motivo-select').value;
+            const motivoCustom = document.getElementById('motivo-custom').value.trim();
+            
+            const motivo = motivoSelect === 'custom' ? motivoCustom : motivoSelect;
+            
+            if (!articuloSeleccionado) {
+                mostrarAlerta('Debe seleccionar un artículo válido', 'error');
+                return false;
+            }
+            
+            if (salidaMercancia(codigo, cantidad, motivo)) {
+                limpiarFormulario('form-salida-mercancia');
+                ocultarInfoArticulo();
+                articuloSeleccionado = null;
+                actualizarCalculadora();
+                verificarDisponibilidad();
+                mostrarSalidasRecientes();
+                cargarListaArticulos(); // Actualizar lista con nuevos Inventario
+                
+                // Preguntar si desea registrar otra salida
+                setTimeout(() => {
+                    if (confirm('¿Desea registrar otra salida de mercancía?')) {
+                        document.getElementById('codigo-articulo').focus();
+                    } else {
+                        window.location.href = 'index.html';
+                    }
+                }, 1500);
+            }
+            
+            return false;
+        }
+
+        // Mostrar salidas recientes
+        function mostrarSalidasRecientes() {
+            const contenedor = document.getElementById('salidas-recientes');
+            if (!contenedor) return;
+            
+            const salidasRecientes = inventario.movimientos
+                .filter(mov => mov.tipo === 'SALIDA')
+                .sort((a, b) => new Date(b.fechaHora) - new Date(a.fechaHora))
+                .slice(0, 5);
+            
+            if (salidasRecientes.length === 0) {
+                contenedor.innerHTML = '<p>No hay salidas registradas. </p>';
+                return;
+            }
+            
+            let html = '<div style="display: grid; gap: 10px;">';
+            salidasRecientes.forEach(salida => {
+                const fecha = new Date(salida.fechaHora).toLocaleString();
+                const articulo = obtenerArticulo(salida.codigoArticulo);
+                
+                html += `
+                    <div style="padding: 10px; border: 1px solid #e74c3c; border-radius: 5px; background: rgba(231, 76, 60, 0.1);">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <strong>📤 ${salida.codigoArticulo}</strong> - ${articulo ? articulo.nombre : 'Artículo no encontrado'}<br>
+                                <small style="color: #666;">
+                                    Cantidad: ${salida.cantidad} | ${fecha}
+                                </small><br>
+                                <small style="color: #666;">Motivo: ${salida.motivo}</small>
+                            </div>
+                            <div style="text-align: right; color: #e74c3c; font-weight: bold;">
+                                -${salida.cantidad}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            
+            contenedor.innerHTML = html;
+        }
+
+        // Event listeners
+        document.getElementById('codigo-articulo').addEventListener('input', function() {
+            this.value = this.value.toUpperCase();
+            
+            // Buscar automáticamente si el código tiene más de 2 caracteres
+            if (this.value.length > 2) {
+                const articulo = obtenerArticulo(this.value);
+                if (articulo) {
+                    mostrarInfoArticulo(articulo);
+                    articuloSeleccionado = articulo;
+                    actualizarCalculadora();
+                    verificarDisponibilidad();
+                } else {
+                    ocultarInfoArticulo();
+                    articuloSeleccionado = null;
+                    actualizarCalculadora();
+                    verificarDisponibilidad();
+                }
+            }
+        });
+
+        document.getElementById('cantidad').addEventListener('input', function() {
+            actualizarCalculadora();
+            verificarDisponibilidad();
+            
+            // Mostrar/ocultar advertencia de Inventario
+            const stockWarning = document.getElementById('stock-warning');
+            const btnRegistrar = document.getElementById('btn-registrar');
+            
+            if (articuloSeleccionado) {
+                const cantidad = parseFloat(this.value) || 0;
+                const stockInsuficiente = cantidad > articuloSeleccionado.cantidad;
+                
+                if (stockInsuficiente && cantidad > 0) {
+                    stockWarning.style.display = 'block';
+                    btnRegistrar.disabled = true;
+                    btnRegistrar.style.opacity = '0.5';
+                } else {
+                    stockWarning.style.display = 'none';
+                    btnRegistrar.disabled = false;
+                    btnRegistrar.style.opacity = '1';
+                }
+            }
+        });
+
+        // Inicialización
+        document.addEventListener('DOMContentLoaded', function() {
+            cargarListaArticulos();
+            mostrarSalidasRecientes();
+            document.getElementById('codigo-articulo').focus();
+        });
+    </script>
+</body>
+</html>

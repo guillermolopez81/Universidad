@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Inventarios - Importadora</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🏢 SISTEMA DE INVENTARIOS</h1>
+            <p>Dashboard</p>
+        </div>
+
+        <!-- Alert Container -->
+        <div id="alert-container"></div>
+
+        <!-- Statistics -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-number" id="total-articulos">0</div>
+                <div class="stat-label">Total Artículos</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="total-movimientos">0</div>
+                <div class="stat-label">Total Movimientos</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="articulos-bajo-stock">0</div>
+                <div class="stat-label">Artículos Bajo Stock</div>
+            </div>
+        </div>
+
+        <!-- Navigation Menu --> 
+        <div class="nav-menu">
+            <div class="menu-grid">
+                <!-- Agregar Artículo -->
+                <a href="agregar-articulo.html" class="menu-item add">
+                    <div class="menu-icon">📦</div>
+                    <div class="menu-text">
+                        <h3>Agregar Artículo</h3>
+                        <p>Registrar nuevos productos en el inventario</p>
+                    </div>
+                </a>
+
+                <!-- Entrada de Mercancía -->
+                <a href="entrada-mercancia.html" class="menu-item entry">
+                    <div class="menu-icon">📥</div>
+                    <div class="menu-text">
+                        <h3>Entrada de Mercancía</h3>
+                        <p>Registrar ingreso de productos al stock</p>
+                    </div>
+                </a>
+
+                <!-- Salida de Mercancía -->
+                <a href="salida-mercancia.html" class="menu-item exit">
+                    <div class="menu-icon">📤</div>
+                    <div class="menu-text">
+                        <h3>Salida de Mercancía</h3>
+                        <p>Registrar retiro de productos del stock</p>
+                    </div>
+                </a>
+
+                <!-- Consultar Inventario -->
+                <a href="consultar-inventario.html" class="menu-item consult">
+                    <div class="menu-icon">🔍</div>
+                    <div class="menu-text">
+                        <h3>Consultar Inventario</h3>
+                        <p>Buscar información de productos específicos</p>
+                    </div>
+                </a>
+
+                <!-- Listar Artículos -->
+                <a href="listar-articulos.html" class="menu-item list">
+                    <div class="menu-icon">📋</div>
+                    <div class="menu-text">
+                        <h3>Listar Artículos</h3>
+                        <p>Ver todos los productos del inventario</p>
+                    </div>
+                </a>
+
+                <!-- Ver Movimientos -->
+                <a href="ver-movimientos.html" class="menu-item movements">
+                    <div class="menu-icon">📊</div>
+                    <div class="menu-text">
+                        <h3>Ver Movimientos</h3>
+                        <p>Historial de entradas y salidas</p>
+                    </div>
+                </a>
+
+                <!-- Generar Reportes -->
+                <a href="generar-reportes.html" class="menu-item reports">
+                    <div class="menu-icon">📄</div>
+                    <div class="menu-text">
+                        <h3>Generar Reportes</h3>
+                        <p>Crear reportes del inventario</p>
+                    </div>
+                </a>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="card">
+            <div class="card-header">
+                <h3>Acciones Rápidas</h3>
+            </div>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <button class="btn btn-success" onclick="window.location.href='agregar-articulo.html'">
+                    ➕ Nuevo Artículo
+                </button>
+                <button class="btn btn-warning" onclick="window.location.href='entrada-mercancia.html'">
+                    📥 Entrada Rápida
+                </button>
+                <button class="btn btn-danger" onclick="window.location.href='salida-mercancia.html'">
+                    📤 Salida Rápida
+                </button>
+                <button class="btn" onclick="exportarDatos()">
+                    💾 Exportar Datos
+                </button>
+                <button class="btn btn-secondary" onclick="document.getElementById('import-file').click()">
+                    📁 Importar Datos
+                </button>
+                <input type="file" id="import-file" accept=".json" style="display: none;" onchange="importarDatos(event)">
+            </div>
+        </div>
+
+        <!-- Recent Activity -->
+        <div class="card">
+            <div class="card-header">
+                <h3>Actividad Reciente</h3>
+            </div>
+            <div id="actividad-reciente">
+                <p>Cargando actividad reciente...</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <script>
+        // Mostrar actividad reciente al cargar la página
+        document.addEventListener('DOMContentLoaded', function() {
+            mostrarActividadReciente();
+        });
+
+        function mostrarActividadReciente() {
+            const contenedor = document.getElementById('actividad-reciente');
+            if (!contenedor) return;
+
+            const movimientosRecientes = inventario.movimientos
+                .sort((a, b) => new Date(b.fechaHora) - new Date(a.fechaHora))
+                .slice(0, 5);
+
+            if (movimientosRecientes.length === 0) {
+                contenedor.innerHTML = '<p>No hay actividad reciente.</p>';
+                return;
+            }
+
+            let html = '<ul style="list-style: none; padding: 0;">';
+            movimientosRecientes.forEach(mov => {
+                const fecha = new Date(mov.fechaHora).toLocaleString();
+                const tipoIcon = mov.tipo === 'ENTRADA' ? '📥' : '📤';
+                const tipoColor = mov.tipo === 'ENTRADA' ? '#27ae60' : '#e74c3c';
+                
+                html += `
+                    <li style="padding: 10px; border-left: 3px solid ${tipoColor}; margin-bottom: 10px; background: rgba(0,0,0,0.05); border-radius: 5px;">
+                        <strong>${tipoIcon} ${mov.tipo}</strong> - ${mov.codigoArticulo}<br>
+                        <small>Cantidad: ${mov.cantidad} | ${fecha}</small><br>
+                        <small style="color: #666;">${mov.motivo}</small>
+                    </li>
+                `;
+            });
+            html += '</ul>';
+            
+            contenedor.innerHTML = html;
+        }
+
+        // Actualizar actividad cada minuto
+        setInterval(mostrarActividadReciente, 60000);
+    </script>
+</body>
+</html>

@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agregar Artículo - Sistema de Inventarios</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Back Button -->
+    <button class="back-btn" onclick="window.location.href='index.html'" title="Volver al menú principal">
+        ←
+    </button>
+
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>📦 AGREGAR NUEVO ARTÍCULO</h1>
+            <p>Registrar nuevos productos en el inventario</p>
+        </div>
+
+        <!-- Alert Container -->
+        <div id="alert-container"></div>
+
+        <!-- Form -->
+        <div class="form-container">
+            <form id="form-agregar-articulo" onsubmit="return procesarFormulario(event)">
+                <div class="form-group">
+                    <label for="codigo">Código del Artículo *</label>
+                    <input type="text" id="codigo" name="codigo" required 
+                           placeholder="Ej: LED001     " 
+                           style="text-transform: uppercase;"
+                           maxlength="20">
+                    <small style="color: #666;">El código debe ser único y se convertirá automáticamente a mayúsculas</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="nombre">Nombre del Artículo *</label>
+                    <input type="text" id="nombre" name="nombre" required 
+                           placeholder="Ej: LUCES LED AMERICANAS"
+                           maxlength="100">
+                </div>
+
+                <div class="form-group">
+                    <label for="descripcion">Descripción</label>
+                    <textarea id="descripcion" name="descripcion" 
+                              placeholder="Descripción del Articulo"
+                              rows="3"
+                              maxlength="500"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="unidad-medida">Unidad de Medida *</label>
+                    <select id="unidad-medida" name="Tipo de unidad" required>
+                        <option value="">Seleccione una unidad</option>
+                        <option value="unidades">Unidad</option>
+                        <option value="kg">Kilogramos (kg)</option>
+                        <option value="metros">Metros</option>
+                        <option value="cm">Centímetros (cm)</option>
+                        <option value="cajas">Cajas</option>
+                        <option value="paquetes">Paquetes</option>
+                        <option value="docenas">Docenas</option>
+                        <option value="pares">Pares</option>
+                        <option value="otros">Otros</option>
+                    </select>
+                </div>
+
+                <div class="form-group" id="unidad-personalizada" style="display: none;">
+                    <label for="unidad-custom">Especificar Unidad de Medida</label>
+                    <input type="text" id="unidad-custom" name="unidad-custom" 
+                           placeholder="Ej: cajas, metros, rollos, Etc."
+                           maxlength="20">
+                </div>
+
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button type="submit" class="btn btn-success">
+                        ✅ Agregar Artículo
+                    </button>
+                    <button type="button" class="btn btn-secondary" onclick="limpiarFormulario('form-agregar-articulo')">
+                        🔄 Limpiar Formulario
+                    </button>
+                    <button type="button" class="btn" onclick="window.location.href='index.html'">
+                        🏠 Volver al Menú
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Preview -->
+        <div class="card">
+            <div class="card-header">
+                <h3>Vista Previa del Artículo</h3>
+            </div>
+            <div id="preview-articulo">
+                <p style="color: #666; font-style: italic;">Complete el formulario para ver la vista previa</p>
+            </div>
+        </div>
+
+        <!-- Recent Articles -->
+        <div class="card">
+            <div class="card-header">
+                <h3>Artículos Agregados Recientemente</h3>
+            </div>
+            <div id="articulos-recientes">
+                <p>Cargando artículos recientes...</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <script>
+        // Mostrar/ocultar campo de unidad 
+        document.getElementById('unidad-medida').addEventListener('change', function() {
+            const unidadPersonalizada = document.getElementById('unidad-personalizada');
+            if (this.value === 'otros') {
+                unidadPersonalizada.style.display = 'block';
+                document.getElementById('unidad-custom').required = true;
+            } else {
+                unidadPersonalizada.style.display = 'none';
+                document.getElementById('unidad-custom').required = false;
+            }
+            actualizarPreview();
+        });
+
+        // Actualizar vista previa en tiempo real
+        function actualizarPreview() {
+            const codigo = document.getElementById('codigo').value.toUpperCase();
+            const nombre = document.getElementById('nombre').value;
+            const descripcion = document.getElementById('descripcion').value;
+            const unidadMedida = document.getElementById('unidad-medida').value;
+            const unidadCustom = document.getElementById('unidad-custom').value;
+            
+            const preview = document.getElementById('preview-articulo');
+            
+            if (!codigo && !nombre) {
+                preview.innerHTML = '<p style="color: #666; font-style: italic;">Complete el formulario para ver la vista previa</p>';
+                return;
+            }
+            
+            const unidadFinal = unidadMedida === 'otros' ? unidadCustom : unidadMedida;
+            
+            preview.innerHTML = `
+                <div style="border: 2px dashed #3498db; padding: 15px; border-radius: 8px; background: rgba(52, 152, 219, 0.1);">
+                    <h4 style="color: #2c3e50; margin-bottom: 10px;">
+                        ${nombre || '[Nombre del artículo]'} (${codigo || '[CÓDIGO]'})
+                    </h4>
+                    <p><strong>Descripción:</strong> ${descripcion || 'Sin descripción'}</p>
+                    <p><strong>Unidad de Medida:</strong> ${unidadFinal || '[Seleccionar unidad]'}</p>
+                    <p><strong>Stock Inicial:</strong> 0 ${unidadFinal || 'unidades'}</p>
+                </div>
+            `;
+        }
+
+        // evento pára actualizar vista previa
+        ['codigo', 'nombre', 'descripcion', 'unidad-custom'].forEach(id => {
+            document.getElementById(id).addEventListener('input', actualizarPreview);
+        });
+
+        // Procesar formulario
+        function procesarFormulario(event) {
+            event.preventDefault();
+            
+            const codigo = document.getElementById('codigo').value.trim();
+            const nombre = document.getElementById('nombre').value.trim();
+            const descripcion = document.getElementById('descripcion').value.trim();
+            const unidadMedida = document.getElementById('unidad-medida').value;
+            const unidadCustom = document.getElementById('unidad-custom').value.trim();
+            
+            const unidadFinal = unidadMedida === 'otros' ? unidadCustom : unidadMedida;
+            
+            if (agregarArticulo(codigo, nombre, descripcion, unidadFinal)) {
+                limpiarFormulario('form-agregar-articulo');
+                actualizarPreview();
+                mostrarArticulosRecientes();
+                
+                // Preguntar si desea agregar otro artículo
+                setTimeout(() => {
+                    if (confirm('¿Desea agregar otro artículo?')) {
+                        document.getElementById('codigo').focus();
+                    } else {
+                        window.location.href = 'index.html';
+                    }
+                }, 1500);
+            }
+            
+            return false;
+        }
+
+        // Mostrar artículos recientes
+        function mostrarArticulosRecientes() {
+            const contenedor = document.getElementById('articulos-recientes');
+            if (!contenedor) return;
+            
+            const articulosRecientes = inventario.articulos
+                .slice(-5)
+                .reverse();
+            
+            if (articulosRecientes.length === 0) {
+                contenedor.innerHTML = '<p>No hay artículos registrados aún.</p>';
+                return;
+            }
+            
+            let html = '<div style="display: grid; gap: 10px;">';
+            articulosRecientes.forEach(articulo => {
+                html += `
+                    <div style="padding: 10px; border: 1px solid #e0e0e0; border-radius: 5px; background: rgba(0,0,0,0.02);">
+                        <strong>${articulo.nombre}</strong> (${articulo.codigo})<br>
+                        <small style="color: #666;">
+                            ${articulo.descripcion || 'Sin descripción'} | 
+                            Stock: ${articulo.cantidad} ${articulo.unidadMedida}
+                        </small>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            
+            contenedor.innerHTML = html;
+        }
+
+        // Inicialización
+        document.addEventListener('DOMContentLoaded', function() {
+            mostrarArticulosRecientes();
+            document.getElementById('codigo').focus();
+        });
+
+        // Validación en tiempo real del código
+        document.getElementById('codigo').addEventListener('input', function() {
+            this.value = this.value.toUpperCase();
+            const codigo = this.value.trim();
+            
+            if (codigo && obtenerArticulo(codigo)) {
+                this.style.borderColor = '#e74c3c';
+                this.style.backgroundColor = 'rgba(231, 76, 60, 0.1)';
+                
+                // Mostrar mensaje de error
+                let errorMsg = document.getElementById('codigo-error');
+                if (!errorMsg) {
+                    errorMsg = document.createElement('small');
+                    errorMsg.id = 'codigo-error';
+                    errorMsg.style.color = '#e74c3c';
+                    this.parentNode.appendChild(errorMsg);
+                }
+                errorMsg.textContent = `⚠️ Ya existe un artículo con el código ${codigo}`;
+            } else {
+                this.style.borderColor = '#e0e0e0';
+                this.style.backgroundColor = '';
+                
+                const errorMsg = document.getElementById('codigo-error');
+                if (errorMsg) {
+                    errorMsg.remove();
+                }
+            }
+            
+            actualizarPreview();
+        });
+    </script>
+</body>
+</html>

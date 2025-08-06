@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Listar Artículos - Sistema de Inventarios</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Back Button -->
+    <button class="back-btn" onclick="window.location.href='index.html'" title="Volver al menú principal">
+        ←
+    </button>
+
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>📋 LISTADO DE ARTÍCULOS</h1>
+            <p>Vista completa de todos los productos del inventario</p>
+        </div>
+
+        <!-- Alert Container -->
+        <div id="alert-container"></div>
+
+        <!-- Controles y Filtros -->
+        <div class="form-container">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
+                <!-- Búsqueda rápida -->
+                <div class="form-group">
+                    <label for="busqueda-rapida">Búsqueda Rápida</label>
+                    <input type="text" id="busqueda-rapida" placeholder="Buscar por código o nombre..."
+                           onkeyup="filtrarTabla()">
+                </div>
+
+                <!-- Filtro por stock -->
+                <div class="form-group">
+                    <label for="filtro-stock">Filtrar por Stock</label>
+                    <select id="filtro-stock" onchange="filtrarTabla()">
+                        <option value="">Todos</option>
+                        <option value="disponible">Con Stock (> 0)</option>
+                        <option value="sin-stock">Sin Stock (= 0)</option>
+                        <option value="bajo-stock">Bajo Stock (< 10)</option>
+                        <option value="medio-stock">Stock Medio (10-99)</option>
+                        <option value="alto-stock">Alto Stock (≥ 100)</option>
+                    </select>
+                </div>
+
+                <!-- Filtro por unidad -->
+                <div class="form-group">
+                    <label for="filtro-unidad">Unidad de Medida</label>
+                    <select id="filtro-unidad" onchange="filtrarTabla()">
+                        <option value="">Todas</option>
+                    </select>
+                </div>
+
+                <!-- Ordenamiento -->
+                <div class="form-group">
+                    <label for="ordenar-por">Ordenar por</label>
+                    <select id="ordenar-por" onchange="ordenarTabla()">
+                        <option value="codigo-asc">Código (A-Z)</option>
+                        <option value="codigo-desc">Código (Z-A)</option>
+                        <option value="nombre-asc">Nombre (A-Z)</option>
+                        <option value="nombre-desc">Nombre (Z-A)</option>
+                        <option value="stock-asc">Stock (Menor a Mayor)</option>
+                        <option value="stock-desc">Stock (Mayor a Menor)</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Acciones -->
+            <div style="display: flex; gap: 10px; flex-wrap: wrap; justify-content: space-between; align-items: center;">
+                <div>
+                    <button class="btn btn-success" onclick="window.location.href='agregar-articulo.html'">
+                        ➕ Agregar Artículo
+                    </button>
+                    <button class="btn btn-secondary" onclick="limpiarFiltros()">
+                        🔄 Limpiar Filtros
+                    </button>
+                    <button class="btn" onclick="actualizarLista()">
+                        🔄 Actualizar
+                    </button>
+                </div>
+                <div>
+                    <button class="btn btn-warning" onclick="exportarTabla('csv')">
+                        📊 Exportar CSV
+                    </button>
+                    <button class="btn" onclick="exportarTabla('json')">
+                        💾 Exportar JSON
+                    </button>
+                    <button class="btn btn-secondary" onclick="imprimirTabla()">
+                        🖨️ Imprimir
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Estadísticas Rápidas -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-number" id="total-articulos">0</div>
+                <div class="stat-label">Total Artículos</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="articulos-mostrados">0</div>
+                <div class="stat-label">Artículos Mostrados</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="total-stock">0</div>
+                <div class="stat-label">Total Items en Stock</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="articulos-sin-stock">0</div>
+                <div class="stat-label">Sin Stock</div>
+            </div>
+        </div>
+
+        <!-- Tabla de Artículos -->
+        <div class="table-container">
+            <div style="display: flex; justify-content: between; align-items: center; margin-bottom: 15px;">
+                <h3>Lista de Artículos</h3>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <label for="items-por-pagina">Mostrar:</label>
+                    <select id="items-por-pagina" onchange="cambiarItemsPorPagina()">
+                        <option value="10">10</option>
+                        <option value="25" selected>25</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                        <option value="all">Todos</option>
+                    </select>
+                    <span>por página</span>
+                </div>
+            </div>
+
+            <div id="tabla-articulos">
+                <p>Cargando artículos...</p>
+            </div>
+
+            <!-- Paginación -->
+            <div id="paginacion" style="display: flex; justify-content: center; align-items: center; gap: 10px; margin-top: 20px;">
+            </div>
+        </div>
+
+        <!-- Vista de Tarjetas (alternativa) -->
+        <div class="card">
+            <div class="card-header">
+                <h3>Vista de Tarjetas</h3>
+                <button class="btn btn-secondary" onclick="toggleVista()" id="btn-toggle-vista">
+                    🔄 Cambiar a Vista de Tarjetas
+                </button>
+            </div>
+            <div id="vista-tarjetas" style="display: none;">
+                <div id="contenedor-tarjetas"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <script>
+        let articulosFiltrados = [];
+        let paginaActual = 1;
+        let itemsPorPagina = 25;
+        let vistaActual = 'tabla'; // 'tabla' o 'tarjetas'
+
+        // Inicializar página
+        function inicializar() {
+            cargarFiltrosUnidad();
+            actualizarLista();
+        }
+
+        // Cargar opciones de filtro de unidad
+        function cargarFiltrosUnidad() {
+            const filtroUnidad = document.getElementById('filtro-unidad');
+            const unidades = new Set();
+            
+            inventario.articulos.forEach(articulo => {
+                unidades.add(articulo.unidadMedida);
+            });
+            
+            filtroUnidad.innerHTML = '<option value="">Todas</option>';
+            Array.from(unidades).sort().forEach(unidad => {
+                const option = document.createElement('option');
+                option.value = unidad;
+                option.textContent = unidad;
+                filtroUnidad.appendChild(option);
+            });
+        }
+
+        // Actualizar lista completa
+        function actualizarLista() {
+            articulosFiltrados = [...inventario.articulos];
+            ordenarTabla();
+            filtrarTabla();
+            actualizarEstadisticas();
+        }
+
+        // Filtrar tabla
+        function filtrarTabla() {
+            const busqueda = document.getElementById('busqueda-rapida').value.toLowerCase();
+            const filtroStock = document.getElementById('filtro-stock').value;
+            const filtroUnidad = document.getElementById('filtro-unidad').value;
+            
+            articulosFiltrados = inventario.articulos.filter(articulo => {
+                // Filtro de búsqueda
+                const coincideBusqueda = !busqueda || 
+                    articulo.codigo.toLowerCase().includes(busqueda) ||
+                    articulo.nombre.toLowerCase().includes(busqueda) ||
+                    (articulo.descripcion && articulo.descripcion.toLowerCase().includes(busqueda));
+                
+                if (!coincideBusqueda) return false;
+                
+                // Filtro por stock
+                if (filtroStock === 'disponible' && articulo.cantidad <= 0) return false;
+                if (filtroStock === 'sin-stock' && articulo.cantidad > 0) return false;
+                if (filtroStock === 'bajo-stock' && (articulo.cantidad >= 10 || articulo.cantidad === 0)) return false;
+                if (filtroStock === 'medio-stock' && (articulo.cantidad < 10 || articulo.cantidad >= 100)) return false;
+                if (filtroStock === 'alto-stock' && articulo.cantidad < 100) return false;
+                
+                // Filtro por unidad
+                if (filtroUnidad && articulo.unidadMedida !== filtroUnidad) return false;
+                
+                return true;
+            });
+            
+            paginaActual = 1; // Resetear a primera página
+            mostrarTabla();
+            actualizarEstadisticas();
+        }
+
+        // Ordenar tabla
+        function ordenarTabla() {
+            const ordenarPor = document.getElementById('ordenar-por').value;
+            
+            articulosFiltrados.sort((a, b) => {
+                switch (ordenarPor) {
+                    case 'codigo-desc':
+                        return b.codigo.localeCompare(a.codigo);
+                    case 'nombre-asc':
+                        return a.nombre.localeCompare(b.nombre);
+                    case 'nombre-desc':
+                        return b.nombre.localeCompare(a.nombre);
+                    case 'stock-asc':
+                        return a.cantidad - b.cantidad;
+                    case 'stock-desc':
+                        return b.cantidad - a.cantidad;
+                    default: // codigo-asc
+                        return a.codigo.localeCompare(b.codigo);
+                }
+            });
+            
+            mostrarTabla();
+        }
+
+        // Mostrar tabla con paginación
+        function mostrarTabla() {
+            const tablaContainer = document.getElementById('tabla-articulos');
+            
+            if (articulosFiltrados.length === 0) {
+                tablaContainer.innerHTML = '<p>No se encontraron artículos con los filtros aplicados.</p>';
+                document.getElementById('paginacion').innerHTML = '';
+                return;
+            }
+            
+            // Calcular paginación
+            const totalItems = articulosFiltrados.length;
+            const totalPaginas = itemsPorPagina === 'all' ? 1 : Math.ceil(totalItems / itemsPorPagina);
+            const inicio = itemsPorPagina === 'all' ? 0 : (paginaActual - 1) * itemsPorPagina;
+            const fin = itemsPorPagina === 'all' ? totalItems : inicio + itemsPorPagina;
+            
+            const articulosPagina = articulosFiltrados.slice(inicio, fin);
+            
+            // Generar tabla
+            let html = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Código</th>
+                            <th>Nombre</th>
+                            <th>Descripción</th>
+                            <th>Stock</th>
+                            <th>Unidad</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            articulosPagina.forEach((articulo, index) => {
+                const numeroFila = inicio + index + 1;
+                const stockColor = articulo.cantidad > 0 ? '#27ae60' : '#e74c3c';
+                
+                let estadoStock = '';
+                let estadoColor = '';
+                let estadoIcon = '';
+                
+                if (articulo.cantidad === 0) {
+                    estadoStock = 'Sin Stock';
+                    estadoColor = '#e74c3c';
+                    estadoIcon = '🔴';
+                } else if (articulo.cantidad < 10) {
+                    estadoStock = 'Bajo Stock';
+                    estadoColor = '#f39c12';
+                    estadoIcon = '🟡';
+                } else if (articulo.cantidad < 100) {
+                    estadoStock = 'Stock Normal';
+                    estadoColor = '#27ae60';
+                    estadoIcon = '🟢';
+                } else {
+                    estadoStock = 'Alto Stock';
+                    estadoColor = '#3498db';
+                    estadoIcon = '🔵';
+                }
+                
+                html += `
+                    <tr>
+                        <td>${numeroFila}</td>
+                        <td><strong>${articulo.codigo}</strong></td>
+                        <td>${articulo.nombre}</td>
+                        <td>${articulo.descripcion || 'Sin descripción'}</td>
+                        <td style="color: ${stockColor}; font-weight: bold; text-align: right;">
+                            ${articulo.cantidad}
+                        </td>
+                        <td>${articulo.unidadMedida}</td>
+                        <td style="color: ${estadoColor};">
+                            ${estadoIcon} ${estadoStock}
+                        </td>
+                        <td>
+                            <button class="btn btn-secondary" onclick="verDetalle('${articulo.codigo}')" 
+                                    style="padding: 5px 10px; font-size: 0.8em; margin-right: 5px;">
+                                👁️ Ver
+                            </button>
+                            <button class="btn btn-warning" onclick="editarArticulo('${articulo.codigo}')" 
+                                    style="padding: 5px 10px; font-size: 0.8em;">
+                                ✏️ Editar
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+            
+            html += '</tbody></table>';
+            tablaContainer.innerHTML = html;
+            
+            // Generar paginación
+            generarPaginacion(totalPaginas, totalItems);
+        }
+
+        // Generar controles de paginación
+        function generarPaginacion(totalPaginas, totalItems) {
+            const paginacionContainer = document.getElementById('paginacion');
+            
+            if (totalPaginas <= 1) {
+                paginacionContainer.innerHTML = '';
+                return;
+            }
+            
+            let html = `
+                <button class="btn btn-secondary" onclick="cambiarPagina(${paginaActual - 1})" 
+                        ${paginaActual === 1 ? 'disabled' : ''}>
+                    ← Anterior
+                </button>
+                <span style="margin: 0 15px;">
+                    Página ${paginaActual} de ${totalPaginas} (${totalItems} artículos)
+                </span>
+                <button class="btn btn-secondary" onclick="cambiarPagina(${paginaActual + 1})" 
+                        ${paginaActual === totalPaginas ? 'disabled' : ''}>
+                    Siguiente →
+                </button>
+            `;
+            
+            paginacionContainer.innerHTML = html;
+        }
+
+        // Cambiar página
+        function cambiarPagina(nuevaPagina) {
+            const totalPaginas = Math.ceil(articulosFiltrados.length / itemsPorPagina);
+            if (nuevaPagina >= 1 && nuevaPagina <= totalPaginas) {
+                paginaActual = nuevaPagina;
+                mostrarTabla();
+            }
+        }
+
+        // Cambiar items por página
+        function cambiarItemsPorPagina() {
+            const valor = document.getElementById('items-por-pagina').value;
+            itemsPorPagina = valor === 'all' ? 'all' : parseInt(valor);
+            paginaActual = 1;
+            mostrarTabla();
+        }
+
+        // Mostrar vista de tarjetas
+        function mostrarTarjetas() {
+            const contenedor = document.getElementById('contenedor-tarjetas');
+            
+            if (articulosFiltrados.length === 0) {
+                contenedor.innerHTML = '<p>No se encontraron artículos con los filtros aplicados.</p>';
+                return;
+            }
+            
+            let html = '<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px;">';
+            
+            articulosFiltrados.forEach(articulo => {
+                const stockColor = articulo.cantidad > 0 ? '#27ae60' : '#e74c3c';
+                
+                let estadoStock = '';
+                let estadoColor = '';
+                
+                if (articulo.cantidad === 0) {
+                    estadoStock = 'Sin Stock';
+                    estadoColor = '#e74c3c';
+                } else if (articulo.cantidad < 10) {
+                    estadoStock = 'Bajo Stock';
+                    estadoColor = '#f39c12';
+                } else {
+                    estadoStock = 'Stock Normal';
+                    estadoColor = '#27ae60';
+                }
+                
+                html += `
+                    <div class="card" style="border-left: 4px solid ${estadoColor};">
+                        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
+                            <div>
+                                <h4 style="margin: 0; color: #2c3e50;">${articulo.nombre}</h4>
+                                <p style="margin: 5px 0; color: #3498db; font-weight: bold;">${articulo.codigo}</p>
+                            </div>
+                            <div style="text-align: right;">
+                                <div style="font-size: 1.5em; color: ${stockColor}; font-weight: bold;">
+                                    ${articulo.cantidad}
+                                </div>
+                                <small style="color: #666;">${articulo.unidadMedida}</small>
+                            </div>
+                        </div>
+                        
+                        <p style="color: #666; margin-bottom: 10px;">
+                            ${articulo.descripcion || 'Sin descripción'}
+                        </p>
+                        
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span style="color: ${estadoColor}; font-weight: bold; font-size: 0.9em;">
+                                ${estadoStock}
+                            </span>
+                            <div>
+                                <button class="btn btn-secondary" onclick="verDetalle('${articulo.codigo}')" 
+                                        style="padding: 5px 10px; font-size: 0.8em; margin-right: 5px;">
+                                    👁️ Ver
+                                </button>
+                                <button class="btn btn-warning" onclick="editarArticulo('${articulo.codigo}')" 
+                                        style="padding: 5px 10px; font-size: 0.8em;">
+                                    ✏️ Editar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+            contenedor.innerHTML = html;
+        }
+
+        // Toggle entre vista de tabla y tarjetas
+        function toggleVista() {
+            const vistaTarjetas = document.getElementById('vista-tarjetas');
+            const btnToggle = document.getElementById('btn-toggle-vista');
+            const tablaContainer = document.getElementById('tabla-articulos').parentElement;
+            
+            if (vistaActual === 'tabla') {
+                vistaActual = 'tarjetas';
+                vistaTarjetas.style.display = 'block';
+                tablaContainer.style.display = 'none';
+                btnToggle.textContent = '🔄 Cambiar a Vista de Tabla';
+                mostrarTarjetas();
+            } else {
+                vistaActual = 'tabla';
+                vistaTarjetas.style.display = 'none';
+                tablaContainer.style.display = 'block';
+                btnToggle.textContent = '🔄 Cambiar a Vista de Tarjetas';
+            }
+        }
+
+        // Actualizar estadísticas
+        function actualizarEstadisticas() {
+            document.getElementById('total-articulos').textContent = inventario.articulos.length;
+            document.getElementById('articulos-mostrados').textContent = articulosFiltrados.length;
+            
+            const totalStock = articulosFiltrados.reduce((sum, art) => sum + art.cantidad, 0);
+            document.getElementById('total-stock').textContent = totalStock.toFixed(0);
+            
+            const sinStock = articulosFiltrados.filter(art => art.cantidad === 0).length;
+            document.getElementById('articulos-sin-stock').textContent = sinStock;
+        }
+
+        // Limpiar filtros
+        function limpiarFiltros() {
+            document.getElementById('busqueda-rapida').value = '';
+            document.getElementById('filtro-stock').value = '';
+            document.getElementById('filtro-unidad').value = '';
+            document.getElementById('ordenar-por').value = 'codigo-asc';
+            filtrarTabla();
+        }
+
+        // Ver detalle del artículo
+        function verDetalle(codigo) {
+            window.open(`consultar-inventario.html?codigo=${codigo}`, '_blank');
+        }
+
+        // Editar artículo (placeholder)
+        function editarArticulo(codigo) {
+            mostrarAlerta(`Función de edición para ${codigo} no implementada en el prototipo`, 'info');
+        }
+
+        // Exportar tabla
+        function exportarTabla(formato) {
+            if (articulosFiltrados.length === 0) {
+                mostrarAlerta('No hay artículos para exportar', 'warning');
+                return;
+            }
+            
+            const fecha = new Date().toISOString().split('T')[0];
+            
+            if (formato === 'csv') {
+                let csv = 'Código,Nombre,Descripción,Stock,Unidad de Medida\n';
+                articulosFiltrados.forEach(articulo => {
+                    csv += `"${articulo.codigo}","${articulo.nombre}","${articulo.descripcion || ''}",${articulo.cantidad},"${articulo.unidadMedida}"\n`;
+                });
+                
+                const blob = new Blob([csv], { type: 'text/csv' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `listado_articulos_${fecha}.csv`;
+                a.click();
+                URL.revokeObjectURL(url);
+            } else if (formato === 'json') {
+                const datos = {
+                    fecha_exportacion: new Date().toISOString(),
+                    total_articulos: articulosFiltrados.length,
+                    articulos: articulosFiltrados
+                };
+                
+                const blob = new Blob([JSON.stringify(datos, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `listado_articulos_${fecha}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+            }
+            
+            mostrarAlerta(`Listado exportado en formato ${formato.toUpperCase()}`, 'success');
+        }
+
+        // Imprimir tabla
+        function imprimirTabla() {
+            const contenidoImprimir = document.getElementById('tabla-articulos').innerHTML;
+            const ventanaImprimir = window.open('', '_blank');
+            
+            ventanaImprimir.document.write(`
+                <html>
+                    <head>
+                        <title>Listado de Artículos - ${new Date().toLocaleDateString()}</title>
+                        <style>
+                            body { font-family: Arial, sans-serif; }
+                            table { width: 100%; border-collapse: collapse; }
+                            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                            th { background-color: #f2f2f2; }
+                            h1 { text-align: center; }
+                        </style>
+                    </head>
+                    <body>
+                        <h1>Listado de Artículos</h1>
+                        <p>Fecha: ${new Date().toLocaleDateString()}</p>
+                        <p>Total de artículos: ${articulosFiltrados.length}</p>
+                        ${contenidoImprimir}
+                    </body>
+                </html>
+            `);
+            
+            ventanaImprimir.document.close();
+            ventanaImprimir.print();
+        }
+
+        // Inicialización
+        document.addEventListener('DOMContentLoaded', inicializar);
+    </script>
+</body>
+</html>

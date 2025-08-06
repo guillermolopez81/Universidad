@@ -1,0 +1,1112 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generar Reportes - Sistema de Inventarios</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Back Button -->
+    <button class="back-btn" onclick="window.location.href='index.html'" title="Volver al menú principal">
+        ←
+    </button>
+
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>📄 GENERAR REPORTES</h1>
+            <p>Crear reportes detallados del inventario y movimientos</p>
+        </div>
+
+        <!-- Alert Container -->
+        <div id="alert-container"></div>
+
+        <!-- Tipos de Reportes -->
+        <div class="menu-grid">
+            <!-- Reporte de Inventario Completo -->
+            <div class="card menu-item" onclick="seleccionarTipoReporte('inventario-completo')">
+                <div class="menu-icon">📋</div>
+                <div class="menu-text">
+                    <h3>Reporte de Inventario Completo</h3>
+                    <p>Lista completa de todos los artículos con stock actual</p>
+                </div>
+            </div>
+
+            <!-- Reporte de Movimientos -->
+            <div class="card menu-item" onclick="seleccionarTipoReporte('movimientos')">
+                <div class="menu-icon">📊</div>
+                <div class="menu-text">
+                    <h3>Reporte de Movimientos</h3>
+                    <p>Historial detallado de entradas y salidas</p>
+                </div>
+            </div>
+
+            <!-- Reporte de Stock Bajo -->
+            <div class="card menu-item" onclick="seleccionarTipoReporte('stock-bajo')">
+                <div class="menu-icon">⚠️</div>
+                <div class="menu-text">
+                    <h3>Reporte de Stock Bajo</h3>
+                    <p>Artículos que requieren reabastecimiento</p>
+                </div>
+            </div>
+
+            <!-- Reporte por Artículo -->
+            <div class="card menu-item" onclick="seleccionarTipoReporte('por-articulo')">
+                <div class="menu-icon">🔍</div>
+                <div class="menu-text">
+                    <h3>Reporte por Artículo</h3>
+                    <p>Análisis detallado de un artículo específico</p>
+                </div>
+            </div>
+
+            <!-- Reporte de Valorización -->
+            <div class="card menu-item" onclick="seleccionarTipoReporte('valorizacion')">
+                <div class="menu-icon">💰</div>
+                <div class="menu-text">
+                    <h3>Reporte de Valorización</h3>
+                    <p>Análisis de valor del inventario (simulado)</p>
+                </div>
+            </div>
+
+            <!-- Reporte Estadístico -->
+            <div class="card menu-item" onclick="seleccionarTipoReporte('estadistico')">
+                <div class="menu-icon">📈</div>
+                <div class="menu-text">
+                    <h3>Reporte Estadístico</h3>
+                    <p>Estadísticas y tendencias del inventario</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Configuración del Reporte -->
+        <div id="configuracion-reporte" class="form-container" style="display: none;">
+            <div class="card-header">
+                <h3 id="titulo-reporte">Configurar Reporte</h3>
+            </div>
+
+            <!-- Filtros Comunes -->
+            <div id="filtros-comunes">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
+                    <div class="form-group">
+                        <label for="fecha-desde">Fecha Desde</label>
+                        <input type="date" id="fecha-desde">
+                    </div>
+                    <div class="form-group">
+                        <label for="fecha-hasta">Fecha Hasta</label>
+                        <input type="date" id="fecha-hasta">
+                    </div>
+                    <div class="form-group">
+                        <label for="formato-reporte">Formato</label>
+                        <select id="formato-reporte">
+                            <option value="html">HTML (Vista Web)</option>
+                            <option value="pdf">PDF (Simulado)</option>
+                            <option value="csv">CSV (Excel)</option>
+                            <option value="json">JSON (Datos)</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filtros Específicos -->
+            <div id="filtros-especificos"></div>
+
+            <!-- Acciones -->
+            <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 20px;">
+                <button class="btn btn-success" onclick="generarReporte()">
+                    📄 Generar Reporte
+                </button>
+                <button class="btn btn-secondary" onclick="previsualizarReporte()">
+                    👁️ Vista Previa
+                </button>
+                <button class="btn" onclick="limpiarConfiguracion()">
+                    🔄 Limpiar
+                </button>
+                <button class="btn btn-secondary" onclick="cancelarReporte()">
+                    ❌ Cancelar
+                </button>
+            </div>
+        </div>
+
+        <!-- Vista Previa del Reporte -->
+        <div id="vista-previa" class="card" style="display: none;">
+            <div class="card-header">
+                <h3>Vista Previa del Reporte</h3>
+                <div>
+                    <button class="btn btn-success" onclick="confirmarGeneracion()">
+                        ✅ Confirmar y Generar
+                    </button>
+                    <button class="btn btn-secondary" onclick="cerrarVistaPrevia()">
+                        ❌ Cerrar Vista Previa
+                    </button>
+                </div>
+            </div>
+            <div id="contenido-vista-previa"></div>
+        </div>
+
+        <!-- Reportes Generados Recientemente -->
+        <div class="card">
+            <div class="card-header">
+                <h3>Reportes Generados Recientemente</h3>
+            </div>
+            <div id="reportes-recientes">
+                <p>No hay reportes generados recientemente.</p>
+            </div>
+        </div>
+
+        <!-- Estadísticas Rápidas -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-number" id="total-articulos-reporte">0</div>
+                <div class="stat-label">Total Artículos</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="total-movimientos-reporte">0</div>
+                <div class="stat-label">Total Movimientos</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="articulos-bajo-stock-reporte">0</div>
+                <div class="stat-label">Artículos Bajo Stock</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="reportes-generados">0</div>
+                <div class="stat-label">Reportes Generados</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <script>
+        let tipoReporteSeleccionado = '';
+        let reportesGenerados = JSON.parse(localStorage.getItem('reportesGenerados') || '[]');
+
+        // Inicializar página
+        function inicializar() {
+            actualizarEstadisticas();
+            mostrarReportesRecientes();
+            establecerFechasPorDefecto();
+        }
+
+        // Establecer fechas por defecto
+        function establecerFechasPorDefecto() {
+            const hoy = new Date();
+            const hace30Dias = new Date();
+            hace30Dias.setDate(hoy.getDate() - 30);
+            
+            document.getElementById('fecha-hasta').value = hoy.toISOString().split('T')[0];
+            document.getElementById('fecha-desde').value = hace30Dias.toISOString().split('T')[0];
+        }
+
+        // Seleccionar tipo de reporte
+        function seleccionarTipoReporte(tipo) {
+            tipoReporteSeleccionado = tipo;
+            const configuracion = document.getElementById('configuracion-reporte');
+            const titulo = document.getElementById('titulo-reporte');
+            const filtrosEspecificos = document.getElementById('filtros-especificos');
+            
+            configuracion.style.display = 'block';
+            
+            // Configurar título y filtros específicos según el tipo
+            switch (tipo) {
+                case 'inventario-completo':
+                    titulo.textContent = 'Configurar Reporte de Inventario Completo';
+                    filtrosEspecificos.innerHTML = `
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                            <div class="form-group">
+                                <label for="incluir-sin-stock">Incluir artículos sin stock</label>
+                                <select id="incluir-sin-stock">
+                                    <option value="true">Sí</option>
+                                    <option value="false">No</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="ordenar-inventario">Ordenar por</label>
+                                <select id="ordenar-inventario">
+                                    <option value="codigo">Código</option>
+                                    <option value="nombre">Nombre</option>
+                                    <option value="stock">Stock</option>
+                                </select>
+                            </div>
+                        </div>
+                    `;
+                    break;
+                    
+                case 'movimientos':
+                    titulo.textContent = 'Configurar Reporte de Movimientos';
+                    filtrosEspecificos.innerHTML = `
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                            <div class="form-group">
+                                <label for="tipo-movimiento">Tipo de Movimiento</label>
+                                <select id="tipo-movimiento">
+                                    <option value="">Todos</option>
+                                    <option value="ENTRADA">Solo Entradas</option>
+                                    <option value="SALIDA">Solo Salidas</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="articulo-especifico">Artículo Específico</label>
+                                <select id="articulo-especifico">
+                                    <option value="">Todos los artículos</option>
+                                </select>
+                            </div>
+                        </div>
+                    `;
+                    cargarArticulosSelect();
+                    break;
+                    
+                case 'stock-bajo':
+                    titulo.textContent = 'Configurar Reporte de Stock Bajo';
+                    filtrosEspecificos.innerHTML = `
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                            <div class="form-group">
+                                <label for="limite-stock-bajo">Límite de Stock Bajo</label>
+                                <input type="number" id="limite-stock-bajo" value="10" min="0">
+                            </div>
+                            <div class="form-group">
+                                <label for="incluir-sin-stock-bajo">Incluir sin stock</label>
+                                <select id="incluir-sin-stock-bajo">
+                                    <option value="true">Sí</option>
+                                    <option value="false">No</option>
+                                </select>
+                            </div>
+                        </div>
+                    `;
+                    break;
+                    
+                case 'por-articulo':
+                    titulo.textContent = 'Configurar Reporte por Artículo';
+                    filtrosEspecificos.innerHTML = `
+                        <div class="form-group">
+                            <label for="articulo-reporte">Seleccionar Artículo</label>
+                            <select id="articulo-reporte" required>
+                                <option value="">Seleccione un artículo</option>
+                            </select>
+                        </div>
+                    `;
+                    cargarArticulosSelect('articulo-reporte');
+                    break;
+                    
+                case 'valorizacion':
+                    titulo.textContent = 'Configurar Reporte de Valorización';
+                    filtrosEspecificos.innerHTML = `
+                        <div class="alert alert-info">
+                            <strong>Nota:</strong> Este es un reporte simulado para demostración. 
+                            En un sistema real incluiría precios y valores monetarios.
+                        </div>
+                    `;
+                    break;
+                    
+                case 'estadistico':
+                    titulo.textContent = 'Configurar Reporte Estadístico';
+                    filtrosEspecificos.innerHTML = `
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                            <div class="form-group">
+                                <label for="incluir-graficos">Incluir Gráficos</label>
+                                <select id="incluir-graficos">
+                                    <option value="true">Sí</option>
+                                    <option value="false">No</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="periodo-analisis">Período de Análisis</label>
+                                <select id="periodo-analisis">
+                                    <option value="7">Últimos 7 días</option>
+                                    <option value="30">Últimos 30 días</option>
+                                    <option value="90">Últimos 90 días</option>
+                                    <option value="365">Último año</option>
+                                </select>
+                            </div>
+                        </div>
+                    `;
+                    break;
+            }
+            
+            // Scroll hacia la configuración
+            configuracion.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // Cargar artículos en select
+        function cargarArticulosSelect(selectId = 'articulo-especifico') {
+            const select = document.getElementById(selectId);
+            if (!select) return;
+            
+            // Limpiar opciones existentes (excepto la primera)
+            while (select.children.length > 1) {
+                select.removeChild(select.lastChild);
+            }
+            
+            inventario.articulos.forEach(articulo => {
+                const option = document.createElement('option');
+                option.value = articulo.codigo;
+                option.textContent = `${articulo.codigo} - ${articulo.nombre}`;
+                select.appendChild(option);
+            });
+        }
+
+        // Previsualizar reporte
+        function previsualizarReporte() {
+            if (!validarConfiguracion()) return;
+            
+            const contenido = generarContenidoReporte(true);
+            const vistaPrevia = document.getElementById('vista-previa');
+            const contenidoPrevia = document.getElementById('contenido-vista-previa');
+            
+            contenidoPrevia.innerHTML = contenido;
+            vistaPrevia.style.display = 'block';
+            vistaPrevia.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // Generar reporte
+        function generarReporte() {
+            if (!validarConfiguracion()) return;
+            
+            const formato = document.getElementById('formato-reporte').value;
+            const contenido = generarContenidoReporte(false);
+            
+            switch (formato) {
+                case 'html':
+                    mostrarReporteHTML(contenido);
+                    break;
+                case 'pdf':
+                    simularGeneracionPDF();
+                    break;
+                case 'csv':
+                    exportarReporteCSV();
+                    break;
+                case 'json':
+                    exportarReporteJSON();
+                    break;
+            }
+            
+            // Registrar reporte generado
+            registrarReporteGenerado();
+        }
+
+        // Validar configuración
+        function validarConfiguracion() {
+            if (!tipoReporteSeleccionado) {
+                mostrarAlerta('Debe seleccionar un tipo de reporte', 'error');
+                return false;
+            }
+            
+            if (tipoReporteSeleccionado === 'por-articulo') {
+                const articulo = document.getElementById('articulo-reporte').value;
+                if (!articulo) {
+                    mostrarAlerta('Debe seleccionar un artículo para el reporte', 'error');
+                    return false;
+                }
+            }
+            
+            return true;
+        }
+
+        // Generar contenido del reporte
+        function generarContenidoReporte(esVistaPrevia = false) {
+            const fechaDesde = document.getElementById('fecha-desde').value;
+            const fechaHasta = document.getElementById('fecha-hasta').value;
+            const fechaGeneracion = new Date().toLocaleString();
+            
+            let contenido = `
+                <div style="text-align: center; margin-bottom: 30px;">
+                    <h2>🏢 SISTEMA DE INVENTARIOS - IMPORTADORA</h2>
+                    <h3>${obtenerTituloReporte()}</h3>
+                    <p><strong>Fecha de Generación:</strong> ${fechaGeneracion}</p>
+                    ${fechaDesde || fechaHasta ? `<p><strong>Período:</strong> ${fechaDesde || 'Sin límite'} - ${fechaHasta || 'Sin límite'}</p>` : ''}
+                    ${esVistaPrevia ? '<div class="alert alert-info">Esta es una vista previa del reporte</div>' : ''}
+                </div>
+            `;
+            
+            switch (tipoReporteSeleccionado) {
+                case 'inventario-completo':
+                    contenido += generarReporteInventarioCompleto();
+                    break;
+                case 'movimientos':
+                    contenido += generarReporteMovimientos();
+                    break;
+                case 'stock-bajo':
+                    contenido += generarReporteStockBajo();
+                    break;
+                case 'por-articulo':
+                    contenido += generarReportePorArticulo();
+                    break;
+                case 'valorizacion':
+                    contenido += generarReporteValorizacion();
+                    break;
+                case 'estadistico':
+                    contenido += generarReporteEstadistico();
+                    break;
+            }
+            
+            return contenido;
+        }
+
+        // Obtener título del reporte
+        function obtenerTituloReporte() {
+            const titulos = {
+                'inventario-completo': 'REPORTE DE INVENTARIO COMPLETO',
+                'movimientos': 'REPORTE DE MOVIMIENTOS',
+                'stock-bajo': 'REPORTE DE STOCK BAJO',
+                'por-articulo': 'REPORTE POR ARTÍCULO',
+                'valorizacion': 'REPORTE DE VALORIZACIÓN',
+                'estadistico': 'REPORTE ESTADÍSTICO'
+            };
+            return titulos[tipoReporteSeleccionado] || 'REPORTE';
+        }
+
+        // Generar reporte de inventario completo
+        function generarReporteInventarioCompleto() {
+            const incluirSinStock = document.getElementById('incluir-sin-stock').value === 'true';
+            const ordenarPor = document.getElementById('ordenar-inventario').value;
+            
+            let articulos = inventario.articulos.filter(art => incluirSinStock || art.cantidad > 0);
+            
+            // Ordenar
+            articulos.sort((a, b) => {
+                switch (ordenarPor) {
+                    case 'nombre': return a.nombre.localeCompare(b.nombre);
+                    case 'stock': return b.cantidad - a.cantidad;
+                    default: return a.codigo.localeCompare(b.codigo);
+                }
+            });
+            
+            let html = `
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-number">${articulos.length}</div>
+                        <div class="stat-label">Total Artículos</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">${articulos.reduce((sum, art) => sum + art.cantidad, 0)}</div>
+                        <div class="stat-label">Total Items en Stock</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">${articulos.filter(art => art.cantidad === 0).length}</div>
+                        <div class="stat-label">Sin Stock</div>
+                    </div>
+                </div>
+                
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Código</th>
+                            <th>Nombre</th>
+                            <th>Descripción</th>
+                            <th>Stock</th>
+                            <th>Unidad</th>
+                            <th>Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            articulos.forEach(articulo => {
+                const estado = articulo.cantidad === 0 ? 'Sin Stock' : 
+                              articulo.cantidad < 10 ? 'Bajo Stock' : 'Normal';
+                const colorEstado = articulo.cantidad === 0 ? '#e74c3c' : 
+                                   articulo.cantidad < 10 ? '#f39c12' : '#27ae60';
+                
+                html += `
+                    <tr>
+                        <td><strong>${articulo.codigo}</strong></td>
+                        <td>${articulo.nombre}</td>
+                        <td>${articulo.descripcion || 'Sin descripción'}</td>
+                        <td style="text-align: right; font-weight: bold;">${articulo.cantidad}</td>
+                        <td>${articulo.unidadMedida}</td>
+                        <td style="color: ${colorEstado}; font-weight: bold;">${estado}</td>
+                    </tr>
+                `;
+            });
+            
+            html += '</tbody></table>';
+            return html;
+        }
+
+        // Generar reporte de movimientos
+        function generarReporteMovimientos() {
+            const tipoMovimiento = document.getElementById('tipo-movimiento').value;
+            const articuloEspecifico = document.getElementById('articulo-especifico').value;
+            const fechaDesde = document.getElementById('fecha-desde').value;
+            const fechaHasta = document.getElementById('fecha-hasta').value;
+            
+            let movimientos = inventario.movimientos.filter(mov => {
+                if (tipoMovimiento && mov.tipo !== tipoMovimiento) return false;
+                if (articuloEspecifico && mov.codigoArticulo !== articuloEspecifico) return false;
+                
+                const fechaMov = new Date(mov.fechaHora).toISOString().split('T')[0];
+                if (fechaDesde && fechaMov < fechaDesde) return false;
+                if (fechaHasta && fechaMov > fechaHasta) return false;
+                
+                return true;
+            });
+            
+            movimientos.sort((a, b) => new Date(b.fechaHora) - new Date(a.fechaHora));
+            
+            const entradas = movimientos.filter(mov => mov.tipo === 'ENTRADA');
+            const salidas = movimientos.filter(mov => mov.tipo === 'SALIDA');
+            
+            let html = `
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-number">${movimientos.length}</div>
+                        <div class="stat-label">Total Movimientos</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" style="color: #27ae60;">${entradas.length}</div>
+                        <div class="stat-label">Entradas</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" style="color: #e74c3c;">${salidas.length}</div>
+                        <div class="stat-label">Salidas</div>
+                    </div>
+                </div>
+                
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Fecha/Hora</th>
+                            <th>Artículo</th>
+                            <th>Tipo</th>
+                            <th>Cantidad</th>
+                            <th>Motivo</th>
+                            <th>Usuario</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            movimientos.forEach(mov => {
+                const fecha = new Date(mov.fechaHora).toLocaleString();
+                const articulo = obtenerArticulo(mov.codigoArticulo);
+                const tipoIcon = mov.tipo === 'ENTRADA' ? '📥' : '📤';
+                const colorTipo = mov.tipo === 'ENTRADA' ? '#27ae60' : '#e74c3c';
+                
+                html += `
+                    <tr>
+                        <td>${fecha}</td>
+                        <td>
+                            <strong>${mov.codigoArticulo}</strong><br>
+                            <small>${articulo ? articulo.nombre : 'Artículo no encontrado'}</small>
+                        </td>
+                        <td style="color: ${colorTipo}; font-weight: bold;">
+                            ${tipoIcon} ${mov.tipo}
+                        </td>
+                        <td style="text-align: right; font-weight: bold;">${mov.cantidad}</td>
+                        <td>${mov.motivo}</td>
+                        <td>${mov.usuario}</td>
+                    </tr>
+                `;
+            });
+            
+            html += '</tbody></table>';
+            return html;
+        }
+
+        // Generar reporte de stock bajo
+        function generarReporteStockBajo() {
+            const limiteStockBajo = parseInt(document.getElementById('limite-stock-bajo').value);
+            const incluirSinStock = document.getElementById('incluir-sin-stock-bajo').value === 'true';
+            
+            let articulos = inventario.articulos.filter(art => {
+                if (incluirSinStock) {
+                    return art.cantidad <= limiteStockBajo;
+                } else {
+                    return art.cantidad > 0 && art.cantidad <= limiteStockBajo;
+                }
+            });
+            
+            articulos.sort((a, b) => a.cantidad - b.cantidad);
+            
+            let html = `
+                <div class="alert alert-warning">
+                    <strong>⚠️ Alerta:</strong> Se encontraron ${articulos.length} artículos con stock bajo (≤ ${limiteStockBajo} unidades)
+                </div>
+                
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-number" style="color: #f39c12;">${articulos.length}</div>
+                        <div class="stat-label">Artículos con Stock Bajo</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" style="color: #e74c3c;">${articulos.filter(art => art.cantidad === 0).length}</div>
+                        <div class="stat-label">Sin Stock</div>
+                    </div>
+                </div>
+                
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Código</th>
+                            <th>Nombre</th>
+                            <th>Stock Actual</th>
+                            <th>Unidad</th>
+                            <th>Prioridad</th>
+                            <th>Recomendación</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            articulos.forEach(articulo => {
+                let prioridad = '';
+                let colorPrioridad = '';
+                let recomendacion = '';
+                
+                if (articulo.cantidad === 0) {
+                    prioridad = 'CRÍTICA';
+                    colorPrioridad = '#e74c3c';
+                    recomendacion = 'Reabastecer inmediatamente';
+                } else if (articulo.cantidad <= 3) {
+                    prioridad = 'ALTA';
+                    colorPrioridad = '#f39c12';
+                    recomendacion = 'Reabastecer pronto';
+                } else {
+                    prioridad = 'MEDIA';
+                    colorPrioridad = '#3498db';
+                    recomendacion = 'Considerar reabastecimiento';
+                }
+                
+                html += `
+                    <tr>
+                        <td><strong>${articulo.codigo}</strong></td>
+                        <td>${articulo.nombre}</td>
+                        <td style="text-align: right; font-weight: bold; color: ${colorPrioridad};">${articulo.cantidad}</td>
+                        <td>${articulo.unidadMedida}</td>
+                        <td style="color: ${colorPrioridad}; font-weight: bold;">${prioridad}</td>
+                        <td>${recomendacion}</td>
+                    </tr>
+                `;
+            });
+            
+            html += '</tbody></table>';
+            return html;
+        }
+
+        // Generar reporte por artículo
+        function generarReportePorArticulo() {
+            const codigoArticulo = document.getElementById('articulo-reporte').value;
+            const articulo = obtenerArticulo(codigoArticulo);
+            
+            if (!articulo) {
+                return '<div class="alert alert-error">Artículo no encontrado</div>';
+            }
+            
+            const movimientos = inventario.movimientos.filter(mov => mov.codigoArticulo === codigoArticulo);
+            const entradas = movimientos.filter(mov => mov.tipo === 'ENTRADA');
+            const salidas = movimientos.filter(mov => mov.tipo === 'SALIDA');
+            
+            const cantidadEntradas = entradas.reduce((sum, mov) => sum + mov.cantidad, 0);
+            const cantidadSalidas = salidas.reduce((sum, mov) => sum + mov.cantidad, 0);
+            
+            let html = `
+                <div class="card">
+                    <h3>Información del Artículo</h3>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                        <div>
+                            <strong>Código:</strong> ${articulo.codigo}<br>
+                            <strong>Nombre:</strong> ${articulo.nombre}<br>
+                            <strong>Descripción:</strong> ${articulo.descripcion || 'Sin descripción'}
+                        </div>
+                        <div>
+                            <strong>Stock Actual:</strong> ${articulo.cantidad} ${articulo.unidadMedida}<br>
+                            <strong>Unidad de Medida:</strong> ${articulo.unidadMedida}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-number">${movimientos.length}</div>
+                        <div class="stat-label">Total Movimientos</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" style="color: #27ae60;">${entradas.length}</div>
+                        <div class="stat-label">Entradas</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" style="color: #e74c3c;">${salidas.length}</div>
+                        <div class="stat-label">Salidas</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" style="color: #3498db;">${(cantidadEntradas - cantidadSalidas).toFixed(2)}</div>
+                        <div class="stat-label">Balance Neto</div>
+                    </div>
+                </div>
+                
+                <h4>Historial de Movimientos</h4>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Fecha/Hora</th>
+                            <th>Tipo</th>
+                            <th>Cantidad</th>
+                            <th>Motivo</th>
+                            <th>Usuario</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            movimientos.sort((a, b) => new Date(b.fechaHora) - new Date(a.fechaHora));
+            
+            movimientos.forEach(mov => {
+                const fecha = new Date(mov.fechaHora).toLocaleString();
+                const tipoIcon = mov.tipo === 'ENTRADA' ? '📥' : '📤';
+                const colorTipo = mov.tipo === 'ENTRADA' ? '#27ae60' : '#e74c3c';
+                const signo = mov.tipo === 'ENTRADA' ? '+' : '-';
+                
+                html += `
+                    <tr>
+                        <td>${fecha}</td>
+                        <td style="color: ${colorTipo}; font-weight: bold;">
+                            ${tipoIcon} ${mov.tipo}
+                        </td>
+                        <td style="text-align: right; font-weight: bold; color: ${colorTipo};">
+                            ${signo}${mov.cantidad}
+                        </td>
+                        <td>${mov.motivo}</td>
+                        <td>${mov.usuario}</td>
+                    </tr>
+                `;
+            });
+            
+            html += '</tbody></table>';
+            return html;
+        }
+
+        // Generar reporte de valorización
+        function generarReporteValorizacion() {
+            // Simulación de precios para demostración
+            const articulosConValor = inventario.articulos.map(articulo => {
+                const precioSimulado = Math.random() * 1000 + 50; // Precio entre 50 y 1050
+                const valorTotal = articulo.cantidad * precioSimulado;
+                return { ...articulo, precio: precioSimulado, valor: valorTotal };
+            });
+            
+            articulosConValor.sort((a, b) => b.valor - a.valor);
+            const valorTotalInventario = articulosConValor.reduce((sum, art) => sum + art.valor, 0);
+            
+            let html = `
+                <div class="alert alert-info">
+                    <strong>Nota:</strong> Los precios mostrados son simulados para fines de demostración.
+                </div>
+                
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-number">$${valorTotalInventario.toLocaleString('es-CO', {minimumFractionDigits: 2})}</div>
+                        <div class="stat-label">Valor Total del Inventario</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">${articulosConValor.length}</div>
+                        <div class="stat-label">Artículos Valorizados</div>
+                    </div>
+                </div>
+                
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Código</th>
+                            <th>Nombre</th>
+                            <th>Stock</th>
+                            <th>Precio Unit. (Simulado)</th>
+                            <th>Valor Total</th>
+                            <th>% del Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            articulosConValor.forEach(articulo => {
+                const porcentaje = ((articulo.valor / valorTotalInventario) * 100).toFixed(2);
+                
+                html += `
+                    <tr>
+                        <td><strong>${articulo.codigo}</strong></td>
+                        <td>${articulo.nombre}</td>
+                        <td style="text-align: right;">${articulo.cantidad}</td>
+                        <td style="text-align: right;">$${articulo.precio.toLocaleString('es-CO', {minimumFractionDigits: 2})}</td>
+                        <td style="text-align: right; font-weight: bold;">$${articulo.valor.toLocaleString('es-CO', {minimumFractionDigits: 2})}</td>
+                        <td style="text-align: right;">${porcentaje}%</td>
+                    </tr>
+                `;
+            });
+            
+            html += '</tbody></table>';
+            return html;
+        }
+
+        // Generar reporte estadístico
+        function generarReporteEstadistico() {
+            const incluirGraficos = document.getElementById('incluir-graficos').value === 'true';
+            const periodoAnalisis = parseInt(document.getElementById('periodo-analisis').value);
+            
+            const fechaLimite = new Date();
+            fechaLimite.setDate(fechaLimite.getDate() - periodoAnalisis);
+            
+            const movimientosRecientes = inventario.movimientos.filter(mov =>
+                new Date(mov.fechaHora) >= fechaLimite
+            );
+            
+            const entradasRecientes = movimientosRecientes.filter(mov => mov.tipo === 'ENTRADA');
+            const salidasRecientes = movimientosRecientes.filter(mov => mov.tipo === 'SALIDA');
+            
+            const articulosMasMovidos = {};
+            movimientosRecientes.forEach(mov => {
+                if (!articulosMasMovidos[mov.codigoArticulo]) {
+                    articulosMasMovidos[mov.codigoArticulo] = 0;
+                }
+                articulosMasMovidos[mov.codigoArticulo]++;
+            });
+            
+            const topArticulos = Object.entries(articulosMasMovidos)
+                .sort(([,a], [,b]) => b - a)
+                .slice(0, 5);
+            
+            let html = `
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-number">${movimientosRecientes.length}</div>
+                        <div class="stat-label">Movimientos (${periodoAnalisis} días)</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" style="color: #27ae60;">${entradasRecientes.length}</div>
+                        <div class="stat-label">Entradas</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" style="color: #e74c3c;">${salidasRecientes.length}</div>
+                        <div class="stat-label">Salidas</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">${(entradasRecientes.length / (movimientosRecientes.length || 1) * 100).toFixed(1)}%</div>
+                        <div class="stat-label">% Entradas</div>
+                    </div>
+                </div>
+                
+                <h4>Top 5 Artículos con Más Movimientos</h4>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Código</th>
+                            <th>Nombre</th>
+                            <th>Movimientos</th>
+                            <th>Stock Actual</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            topArticulos.forEach(([codigo, movimientos]) => {
+                const articulo = obtenerArticulo(codigo);
+                html += `
+                    <tr>
+                        <td><strong>${codigo}</strong></td>
+                        <td>${articulo ? articulo.nombre : 'Artículo no encontrado'}</td>
+                        <td style="text-align: center; font-weight: bold;">${movimientos}</td>
+                        <td style="text-align: right;">${articulo ? articulo.cantidad : 'N/A'}</td>
+                    </tr>
+                `;
+            });
+            
+            html += '</tbody></table>';
+            
+            if (incluirGraficos) {
+                html += `
+                    <h4>Gráfico de Tendencias (Simulado)</h4>
+                    <div style="text-align: center; padding: 40px; border: 2px dashed #ddd; border-radius: 8px;">
+                        📈 Aquí se mostraría un gráfico de tendencias<br>
+                        <small>Funcionalidad de demostración</small>
+                    </div>
+                `;
+            }
+            
+            return html;
+        }
+
+        // Mostrar reporte HTML
+        function mostrarReporteHTML(contenido) {
+            const ventanaReporte = window.open('', '_blank');
+            ventanaReporte.document.write(`
+                <html>
+                    <head>
+                        <title>Reporte - Sistema de Inventarios</title>
+                        <link rel="stylesheet" href="styles.css">
+                        <style>
+                            body { background: white; }
+                            .container { max-width: 1000px; }
+                            @media print {
+                                .no-print { display: none; }
+                            }
+                        </style>
+                    </head>
+                    <body>
+                        <div class="container">
+                            ${contenido}
+                            <div class="no-print" style="text-align: center; margin-top: 30px;">
+                                <button onclick="window.print()" class="btn btn-secondary">🖨️ Imprimir</button>
+                                <button onclick="window.close()" class="btn">❌ Cerrar</button>
+                            </div>
+                        </div>
+                    </body>
+                </html>
+            `);
+        }
+
+        // Simular generación PDF
+        function simularGeneracionPDF() {
+            mostrarAlerta('Generación de PDF simulada. En un sistema real se usaría una librería como jsPDF o se generaría en el servidor.', 'info');
+        }
+
+        // Exportar reporte CSV
+        function exportarReporteCSV() {
+            let csv = '';
+            const fecha = new Date().toISOString().split('T')[0];
+            
+            switch (tipoReporteSeleccionado) {
+                case 'inventario-completo':
+                    csv = 'Código,Nombre,Descripción,Stock,Unidad\n';
+                    inventario.articulos.forEach(art => {
+                        csv += `"${art.codigo}","${art.nombre}","${art.descripcion || ''}",${art.cantidad},"${art.unidadMedida}"\n`;
+                    });
+                    break;
+                case 'movimientos':
+                    csv = 'Fecha,Artículo,Tipo,Cantidad,Motivo,Usuario\n';
+                    inventario.movimientos.forEach(mov => {
+                        const fecha = new Date(mov.fechaHora).toLocaleString();
+                        csv += `"${fecha}","${mov.codigoArticulo}","${mov.tipo}",${mov.cantidad},"${mov.motivo}","${mov.usuario}"\n`;
+                    });
+                    break;
+                default:
+                    csv = 'Reporte,Fecha\n';
+                    csv += `"${obtenerTituloReporte()}","${new Date().toLocaleString()}"\n`;
+            }
+            
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `reporte_${tipoReporteSeleccionado}_${fecha}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+            
+            mostrarAlerta('Reporte CSV exportado exitosamente', 'success');
+        }
+
+        // Exportar reporte JSON
+        function exportarReporteJSON() {
+            const datos = {
+                tipo_reporte: tipoReporteSeleccionado,
+                titulo: obtenerTituloReporte(),
+                fecha_generacion: new Date().toISOString(),
+                datos: tipoReporteSeleccionado === 'inventario-completo' ? inventario.articulos : inventario.movimientos
+            };
+            
+            const blob = new Blob([JSON.stringify(datos, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `reporte_${tipoReporteSeleccionado}_${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            
+            mostrarAlerta('Reporte JSON exportado exitosamente', 'success');
+        }
+
+        // Registrar reporte generado
+        function registrarReporteGenerado() {
+            const reporte = {
+                id: Date.now(),
+                tipo: tipoReporteSeleccionado,
+                titulo: obtenerTituloReporte(),
+                fecha: new Date().toISOString(),
+                formato: document.getElementById('formato-reporte').value
+            };
+            
+            reportesGenerados.unshift(reporte);
+            if (reportesGenerados.length > 10) {
+                reportesGenerados = reportesGenerados.slice(0, 10);
+            }
+            
+            localStorage.setItem('reportesGenerados', JSON.stringify(reportesGenerados));
+            mostrarReportesRecientes();
+            actualizarEstadisticas();
+        }
+
+        // Mostrar reportes recientes
+        function mostrarReportesRecientes() {
+            const contenedor = document.getElementById('reportes-recientes');
+            
+            if (reportesGenerados.length === 0) {
+                contenedor.innerHTML = '<p>No hay reportes generados recientemente.</p>';
+                return;
+            }
+            
+            let html = '<div style="display: grid; gap: 10px;">';
+            reportesGenerados.forEach(reporte => {
+                const fecha = new Date(reporte.fecha).toLocaleString();
+                html += `
+                    <div style="padding: 10px; border: 1px solid #e0e0e0; border-radius: 5px; background: rgba(0,0,0,0.02);">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <strong>${reporte.titulo}</strong><br>
+                                <small style="color: #666;">
+                                    ${fecha} | Formato: ${reporte.formato.toUpperCase()}
+                                </small>
+                            </div>
+                            <button class="btn btn-secondary" onclick="regenerarReporte('${reporte.tipo}')"
+                                    style="padding: 5px 10px; font-size: 0.8em;">
+                                🔄 Regenerar
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            
+            contenedor.innerHTML = html;
+        }
+
+        // Regenerar reporte
+        function regenerarReporte(tipo) {
+            seleccionarTipoReporte(tipo);
+        }
+
+        // Confirmar generación desde vista previa
+        function confirmarGeneracion() {
+            generarReporte();
+            cerrarVistaPrevia();
+        }
+
+        // Cerrar vista previa
+        function cerrarVistaPrevia() {
+            document.getElementById('vista-previa').style.display = 'none';
+        }
+
+        // Limpiar configuración
+        function limpiarConfiguracion() {
+            document.getElementById('fecha-desde').value = '';
+            document.getElementById('fecha-hasta').value = '';
+            document.getElementById('formato-reporte').value = 'html';
+            document.getElementById('filtros-especificos').innerHTML = '';
+            establecerFechasPorDefecto();
+        }
+
+        // Cancelar reporte
+        function cancelarReporte() {
+            document.getElementById('configuracion-reporte').style.display = 'none';
+            document.getElementById('vista-previa').style.display = 'none';
+            tipoReporteSeleccionado = '';
+        }
+
+        // Actualizar estadísticas
+        function actualizarEstadisticas() {
+            document.getElementById('total-articulos-reporte').textContent = inventario.articulos.length;
+            document.getElementById('total-movimientos-reporte').textContent = inventario.movimientos.length;
+            document.getElementById('articulos-bajo-stock-reporte').textContent =
+                inventario.articulos.filter(art => art.cantidad < 10).length;
+            document.getElementById('reportes-generados').textContent = reportesGenerados.length;
+        }
+
+        // Inicialización
+        document.addEventListener('DOMContentLoaded', inicializar);
+    </script>
+</body>
+</html>

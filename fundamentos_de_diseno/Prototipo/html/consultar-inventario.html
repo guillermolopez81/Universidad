@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Consultar Inventario - Sistema de Inventarios</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Back Button -->
+    <button class="back-btn" onclick="window.location.href='index.html'" title="Volver al menú principal">
+        ←
+    </button>
+
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🔍 CONSULTAR INVENTARIO</h1>
+            <p>Buscar información del inventario</p>
+        </div>
+
+        <!-- Alert Container -->
+        <div id="alert-container"></div>
+
+        <!-- Search Form -->
+        <div class="form-container">
+            <div class="form-group">
+                <label for="busqueda">Buscar Artículo</label>
+                <div style="display: flex; gap: 10px;">
+                    <input type="text" id="busqueda" placeholder="Código o nombre del artículo"
+                           style="flex: 1;" list="articulos-list">
+                    <button type="button" class="btn btn-success" onclick="buscarArticulo()">
+                        🔍 Buscar
+                    </button>
+                    <button type="button" class="btn btn-secondary" onclick="limpiarBusqueda()">
+                        🔄 Limpiar busqueda
+                    </button>
+                </div>
+                <datalist id="articulos-list"></datalist>
+                <small style="color: #666;">Puede buscar por código o nombre del artículo</small>
+            </div>
+            
+        </div>
+
+        <!-- Resultado de Búsqueda -->
+        <div id="resultado-busqueda" style="display: none;">
+            <div class="card">
+                <div class="card-header">
+                    <h3>Información del Artículo</h3>
+                </div>
+                <div id="detalle-articulo"></div>
+            </div>
+
+            <!-- Historial de Movimientos -->
+            <div class="card">
+                <div class="card-header">
+                    <h3>Historial de Movimientos</h3>
+                </div>
+                <div id="historial-movimientos"></div>
+            </div>
+
+            <!-- Estadísticas del Artículo -->
+            <div class="card">
+                <div class="card-header">
+                    <h3>Estadísticas</h3>
+                </div>
+                <div id="estadisticas-articulo"></div>
+            </div>
+        </div>
+
+       
+
+        <!-- Resumen Rápido -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-number" id="total-articulos-filtrados">0</div>
+                <div class="stat-label">Artículos Mostrados</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="valor-total-stock">0</div>
+                <div class="stat-label">Items en Stock</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="articulos-sin-stock">0</div>
+                <div class="stat-label">Sin Stock</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <script>
+        let articulosFiltrados = [];
+
+        // Cargar lista de artículos para autocompletado
+        function cargarListaArticulos() {
+            const datalist = document.getElementById('articulos-list');
+            const filtroUnidad = document.getElementById('filtro-unidad');
+            
+            datalist.innerHTML = '';
+            const unidades = new Set();
+            
+            inventario.articulos.forEach(articulo => {
+                // Autocompletado
+                const optionCodigo = document.createElement('option');
+                optionCodigo.value = articulo.codigo;
+                optionCodigo.textContent = `${articulo.codigo} - ${articulo.nombre}`;
+                datalist.appendChild(optionCodigo);
+                
+                const optionNombre = document.createElement('option');
+                optionNombre.value = articulo.nombre;
+                optionNombre.textContent = `${articulo.nombre} (${articulo.codigo})`;
+                datalist.appendChild(optionNombre);
+                
+                // Unidades para filtro
+                unidades.add(articulo.unidadMedida);
+            });
+            
+            // Actualizar filtro de unidades
+            filtroUnidad.innerHTML = '<option value="">Todas</option>';
+            Array.from(unidades).sort().forEach(unidad => {
+                const option = document.createElement('option');
+                option.value = unidad;
+                option.textContent = unidad;
+                filtroUnidad.appendChild(option);
+            });
+        }
+
+        // Buscar artículo específico
+        function buscarArticulo() {
+            const busqueda = document.getElementById('busqueda').value.trim();
+            if (!busqueda) {
+                mostrarAlerta('Ingrese un código o nombre para buscar', 'warning');
+                return;
+            }
+
+            // Buscar por código exacto
+            let articulo = obtenerArticulo(busqueda.toUpperCase());
+            
+            // Si no se encuentra por código, buscar por nombre
+            if (!articulo) {
+                articulo = inventario.articulos.find(art => 
+                    art.nombre.toLowerCase().includes(busqueda.toLowerCase())
+                );
+            }
+
+            if (articulo) {
+                mostrarDetalleArticulo(articulo);
+                document.getElementById('resultado-busqueda').style.display = 'block';
+            } else {
+                mostrarAlerta(`No se encontró ningún artículo con "${busqueda}"`, 'error');
+                document.getElementById('resultado-busqueda').style.display = 'none';
+            }
+        }
+
+        // Mostrar detalle completo del artículo
+        function mostrarDetalleArticulo(articulo) {
+            const detalleContainer = document.getElementById('detalle-articulo');
+            
+            const stockStatus = articulo.cantidad > 0 ? 'Disponible' : 'Sin Stock';
+            const stockColor = articulo.cantidad > 0 ? '#27ae60' : '#e74c3c';
+            const stockIcon = articulo.cantidad > 0 ? '✅' : '❌';
+            
+            let alertaStock = '';
+            if (articulo.cantidad === 0) {
+                alertaStock = '<div class="alert alert-error">⚠️ Artículo sin stock</div>';
+            } else if (articulo.cantidad < 10) {
+                alertaStock = '<div class="alert alert-warning">⚠️ Stock bajo - Considere reabastecer</div>';
+            }
+            
+            detalleContainer.innerHTML = `
+                ${alertaStock}
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;">
+                    <div class="card" style="background: rgba(52, 152, 219, 0.1);">
+                        <h4 style="color: #2c3e50; margin-bottom: 10px;">Información Básica</h4>
+                        <p><strong>Código:</strong> <span style="font-size: 1.2em; color: #3498db;">${articulo.codigo}</span></p>
+                        <p><strong>Nombre:</strong> ${articulo.nombre}</p>
+                        <p><strong>Descripción:</strong> ${articulo.descripcion || 'Sin descripción'}</p>
+                        <p><strong>Unidad de Medida:</strong> ${articulo.unidadMedida}</p>
+                    </div>
+                    
+                    <div class="card" style="background: rgba(39, 174, 96, 0.1);">
+                        <h4 style="color: #2c3e50; margin-bottom: 10px;">Stock Actual</h4>
+                        <div style="text-align: center;">
+                            <div style="font-size: 3em; color: ${stockColor}; margin: 10px 0;">
+                                ${articulo.cantidad}
+                            </div>
+                            <div style="font-size: 1.2em; color: #666;">
+                                ${articulo.unidadMedida}
+                            </div>
+                            <div style="margin-top: 10px; color: ${stockColor}; font-weight: bold;">
+                                ${stockIcon} ${stockStatus}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Mostrar historial de movimientos
+            mostrarHistorialMovimientos(articulo.codigo);
+            
+            // Mostrar estadísticas
+            mostrarEstadisticasArticulo(articulo.codigo);
+        }
+
+        // Mostrar historial de movimientos
+        function mostrarHistorialMovimientos(codigoArticulo) {
+            const historialContainer = document.getElementById('historial-movimientos');
+            const movimientos = inventario.movimientos.filter(mov => mov.codigoArticulo === codigoArticulo);
+            
+            if (movimientos.length === 0) {
+                historialContainer.innerHTML = '<p>No hay movimientos registrados para este artículo.</p>';
+                return;
+            }
+            
+            movimientos.sort((a, b) => new Date(b.fechaHora) - new Date(a.fechaHora));
+            
+            let html = `
+                <div style="max-height: 300px; overflow-y: auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Fecha/Hora</th>
+                                <th>Tipo</th>
+                                <th>Cantidad</th>
+                                <th>Motivo</th>
+                                <th>Usuario</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+            
+            movimientos.forEach(mov => {
+                const fecha = new Date(mov.fechaHora).toLocaleString();
+                const tipoClass = mov.tipo === 'ENTRADA' ? 'success' : 'danger';
+                const tipoIcon = mov.tipo === 'ENTRADA' ? '📥' : '📤';
+                const signo = mov.tipo === 'ENTRADA' ? '+' : '-';
+                
+                html += `
+                    <tr>
+                        <td>${fecha}</td>
+                        <td>
+                            <span class="btn btn-${tipoClass}" style="padding: 2px 8px; font-size: 0.8em;">
+                                ${tipoIcon} ${mov.tipo}
+                            </span>
+                        </td>
+                        <td style="color: ${mov.tipo === 'ENTRADA' ? '#27ae60' : '#e74c3c'}; font-weight: bold;">
+                            ${signo}${mov.cantidad}
+                        </td>
+                        <td>${mov.motivo}</td>
+                        <td>${mov.usuario}</td>
+                    </tr>
+                `;
+            });
+            
+            html += '</tbody></table></div>';
+            historialContainer.innerHTML = html;
+        }
+
+        // Mostrar estadísticas del artículo
+        function mostrarEstadisticasArticulo(codigoArticulo) {
+            const estadisticasContainer = document.getElementById('estadisticas-articulo');
+            const movimientos = inventario.movimientos.filter(mov => mov.codigoArticulo === codigoArticulo);
+            
+            const totalEntradas = movimientos.filter(mov => mov.tipo === 'ENTRADA').length;
+            const totalSalidas = movimientos.filter(mov => mov.tipo === 'SALIDA').length;
+            const cantidadEntradas = movimientos
+                .filter(mov => mov.tipo === 'ENTRADA')
+                .reduce((sum, mov) => sum + mov.cantidad, 0);
+            const cantidadSalidas = movimientos
+                .filter(mov => mov.tipo === 'SALIDA')
+                .reduce((sum, mov) => sum + mov.cantidad, 0);
+            
+            const ultimoMovimiento = movimientos.length > 0 ? 
+                new Date(Math.max(...movimientos.map(mov => new Date(mov.fechaHora)))).toLocaleString() : 
+                'Sin movimientos';
+            
+            estadisticasContainer.innerHTML = `
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-number" style="color: #27ae60;">${totalEntradas}</div>
+                        <div class="stat-label">Total Entradas</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" style="color: #e74c3c;">${totalSalidas}</div>
+                        <div class="stat-label">Total Salidas</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" style="color: #3498db;">${cantidadEntradas.toFixed(2)}</div>
+                        <div class="stat-label">Cantidad Ingresada</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" style="color: #f39c12;">${cantidadSalidas.toFixed(2)}</div>
+                        <div class="stat-label">Cantidad Retirada</div>
+                    </div>
+                </div>
+                <p style="text-align: center; margin-top: 15px; color: #666;">
+                    <strong>Último Movimiento:</strong> ${ultimoMovimiento}
+                </p>
+            `;
+        }
+
+        // Aplicar filtros
+        function aplicarFiltros() {
+            const filtroStock = document.getElementById('filtro-stock').value;
+            const filtroUnidad = document.getElementById('filtro-unidad').value;
+            const ordenarPor = document.getElementById('ordenar-por').value;
+            
+            articulosFiltrados = inventario.articulos.filter(articulo => {
+                // Filtro por stock
+                if (filtroStock === 'disponible' && articulo.cantidad <= 0) return false;
+                if (filtroStock === 'sin-stock' && articulo.cantidad > 0) return false;
+                if (filtroStock === 'bajo-stock' && articulo.cantidad >= 10) return false;
+                if (filtroStock === 'alto-stock' && articulo.cantidad < 100) return false;
+                
+                // Filtro por unidad
+                if (filtroUnidad && articulo.unidadMedida !== filtroUnidad) return false;
+                
+                return true;
+            });
+            
+            // Ordenar
+            articulosFiltrados.sort((a, b) => {
+                switch (ordenarPor) {
+                    case 'nombre':
+                        return a.nombre.localeCompare(b.nombre);
+                    case 'stock-asc':
+                        return a.cantidad - b.cantidad;
+                    case 'stock-desc':
+                        return b.cantidad - a.cantidad;
+                    default: // codigo
+                        return a.codigo.localeCompare(b.codigo);
+                }
+            });
+            
+            mostrarListaArticulos();
+            actualizarEstadisticas();
+        }
+
+        // Mostrar lista de artículos
+        function mostrarListaArticulos() {
+            const listaContainer = document.getElementById('lista-articulos');
+            const contador = document.getElementById('contador-articulos');
+            
+            contador.textContent = `${articulosFiltrados.length} artículos`;
+            
+            if (articulosFiltrados.length === 0) {
+                listaContainer.innerHTML = '<p>No se encontraron artículos con los filtros aplicados.</p>';
+                return;
+            }
+            
+            let html = `
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Código</th>
+                                <th>Nombre</th>
+                                <th>Stock</th>
+                                <th>Unidad</th>
+                                <th>Estado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+            
+            articulosFiltrados.forEach(articulo => {
+                const stockStatus = articulo.cantidad > 0 ? 'Disponible' : 'Sin Stock';
+                const stockColor = articulo.cantidad > 0 ? '#27ae60' : '#e74c3c';
+                const stockIcon = articulo.cantidad > 0 ? '✅' : '❌';
+                
+                let alertaStock = '';
+                if (articulo.cantidad === 0) {
+                    alertaStock = '🔴';
+                } else if (articulo.cantidad < 10) {
+                    alertaStock = '🟡';
+                } else {
+                    alertaStock = '🟢';
+                }
+                
+                html += `
+                    <tr>
+                        <td><strong>${articulo.codigo}</strong></td>
+                        <td>${articulo.nombre}</td>
+                        <td style="color: ${stockColor}; font-weight: bold;">${articulo.cantidad}</td>
+                        <td>${articulo.unidadMedida}</td>
+                        <td>
+                            ${alertaStock} <span style="color: ${stockColor};">${stockStatus}</span>
+                        </td>
+                        <td>
+                            <button class="btn btn-secondary" onclick="consultarArticuloEspecifico('${articulo.codigo}')" 
+                                    style="padding: 5px 10px; font-size: 0.8em;">
+                                👁️ Ver Detalle
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+            
+            html += '</tbody></table></div>';
+            listaContainer.innerHTML = html;
+        }
+
+        // Consultar artículo específico desde la lista
+        function consultarArticuloEspecifico(codigo) {
+            document.getElementById('busqueda').value = codigo;
+            buscarArticulo();
+            
+            // Scroll hacia arriba para ver el resultado
+            document.getElementById('resultado-busqueda').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // Actualizar estadísticas
+        function actualizarEstadisticas() {
+            document.getElementById('total-articulos-filtrados').textContent = articulosFiltrados.length;
+            
+            const totalStock = articulosFiltrados.reduce((sum, art) => sum + art.cantidad, 0);
+            document.getElementById('valor-total-stock').textContent = totalStock.toFixed(0);
+            
+            const sinStock = articulosFiltrados.filter(art => art.cantidad === 0).length;
+            document.getElementById('articulos-sin-stock').textContent = sinStock;
+        }
+
+        // Limpiar búsqueda
+        function limpiarBusqueda() {
+            document.getElementById('busqueda').value = '';
+            document.getElementById('resultado-busqueda').style.display = 'none';
+            document.getElementById('busqueda').focus();
+        }
+
+        // Exportar lista filtrada
+        function exportarListaFiltrada() {
+            if (articulosFiltrados.length === 0) {
+                mostrarAlerta('No hay artículos para exportar', 'warning');
+                return;
+            }
+            
+            const datos = {
+                fecha_exportacion: new Date().toISOString(),
+                total_articulos: articulosFiltrados.length,
+                articulos: articulosFiltrados.map(art => art.obtener_info ? art.obtener_info() : art)
+            };
+            
+            const blob = new Blob([JSON.stringify(datos, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `consulta_inventario_${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            mostrarAlerta('Lista exportada exitosamente', 'success');
+        }
+
+        // Event listeners
+        document.getElementById('busqueda').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                buscarArticulo();
+            }
+        });
+
+        document.getElementById('busqueda').addEventListener('input', function() {
+            // Ocultar resultado si se limpia la búsqueda
+            if (!this.value.trim()) {
+                document.getElementById('resultado-busqueda').style.display = 'none';
+            }
+        });
+
+        // Inicialización
+        document.addEventListener('DOMContentLoaded', function() {
+            cargarListaArticulos();
+            aplicarFiltros(); // Mostrar todos los artículos inicialmente
+            document.getElementById('busqueda').focus();
+        });
+    </script>
+</body>
+</html>

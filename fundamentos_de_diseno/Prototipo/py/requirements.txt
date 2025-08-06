@@ -1,0 +1,2 @@
+# se debe intalar esta dependencias del Sistema de Inventarios,para generación de reportes PDF
+reportlab>=4.0.0

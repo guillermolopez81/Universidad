@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Entrada de Mercancía - Sistema de Inventarios</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Back Button -->
+    <button class="back-btn" onclick="window.location.href='index.html'" title="Volver al menú principal">
+        ←
+    </button>
+
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>📥 ENTRADA DE MERCANCÍA</h1>
+            <p>Registrar ingreso de productos al inventario</p>
+        </div>
+
+        <!-- Alert Container -->
+        <div id="alert-container"></div>
+
+        <!-- Form -->
+        <div class="form-container">
+            <form id="form-entrada-mercancia" onsubmit="return procesarEntrada(event)">
+                <div class="form-group">
+                    <label for="codigo-articulo">Código del Artículo *</label>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="text" id="codigo-articulo" name="codigo-articulo" required 
+                               placeholder="Ingrese el código del artículo"
+                               style="text-transform: uppercase; flex: 1;"
+                               list="articulos-list">
+                        <button type="button" class="btn btn-secondary" onclick="buscarArticulo()">
+                            🔍 Buscar
+                        </button>
+                    </div>
+                    <datalist id="articulos-list"></datalist>
+                </div>
+
+                <!-- Información del Artículo -->
+                <div id="info-articulo" class="card" style="display: none; margin-bottom: 20px;">
+                    <div class="card-header">
+                        <h3>Información del Artículo</h3>
+                    </div>
+                    <div id="detalle-articulo"></div>
+                </div>
+
+                <div class="form-group">
+                    <label for="cantidad">Cantidad a Ingresar *</label>
+                    <input type="number" id="cantidad" name="cantidad" required 
+                           placeholder="0" 
+                           min="0.01" 
+                           step="0.01">
+                    <small id="unidad-info" style="color: #666;"></small>
+                </div>
+
+                <div class="form-group">
+                    <label for="motivo">Motivo de la Entrada</label>
+                    <select id="motivo-select" onchange="toggleMotivoCustom()">
+                        <option value="Entrada de mercancía">Entrada de mercancía</option>
+                        <option value="Compra">Compra</option>
+                        <option value="Devolución">Devolución</option>
+                        <option value="Ajuste de inventario">Ajuste de inventario</option>
+                        <option value="Transferencia">Translado a otra bodega</option>
+                        <option value="custom">Otro (especificar)</option>
+                    </select>
+                </div>
+
+                <div class="form-group" id="motivo-custom-group" style="display: none;">
+                    <label for="motivo-custom">Especificar Motivo</label>
+                    <input type="text" id="motivo-custom" placeholder="Describa el motivo de la entrada">
+                </div>
+
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button type="submit" class="btn btn-success">
+                        ✅ Registrar Entrada
+                    </button>
+                    <button type="button" class="btn btn-secondary" onclick="limpiarFormulario('form-entrada-mercancia')">
+                        🔄 Limpiar Formulario
+                    </button>
+                    <button type="button" class="btn" onclick="window.location.href='index.html'">
+                        🏠 Volver al Menú
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Calculadora de inventario -->
+        <div class="card">
+            <div class="card-header">
+                <h3>Calculadora de Inventario</h3>
+            </div>
+            <div id="calculadora-stock">
+                <p style="color: #666; font-style: italic;">Seleccione un artículo para ver el cálculo del nuevo Inventario</p>
+            </div>
+        </div>
+
+        <!-- Entradas Recientes -->
+        <div class="card">
+            <div class="card-header">
+                <h3>Entradas Recientes</h3>
+            </div>
+            <div id="entradas-recientes">
+                <p>Cargando entradas recientes...</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <script>
+        let articuloSeleccionado = null;
+
+        // Cargar lista de artículos para autocompletado
+        function cargarListaArticulos() {
+            const datalist = document.getElementById('articulos-list');
+            datalist.innerHTML = '';
+            
+            inventario.articulos.forEach(articulo => {
+                const option = document.createElement('option');
+                option.value = articulo.codigo;
+                option.textContent = `${articulo.codigo} - ${articulo.nombre}`;
+                datalist.appendChild(option);
+            });
+        }
+
+        // Buscar artículo
+        function buscarArticulo() {
+            const codigo = document.getElementById('codigo-articulo').value.trim().toUpperCase();
+            if (!codigo) {
+                mostrarAlerta('Ingrese un código de artículo', 'warning');
+                return;
+            }
+
+            const articulo = obtenerArticulo(codigo);
+            if (articulo) {
+                mostrarInfoArticulo(articulo);
+                articuloSeleccionado = articulo;
+                actualizarCalculadora();
+            } else {
+                mostrarAlerta(`No se encontró un artículo con el código ${codigo}`, 'error');
+                ocultarInfoArticulo();
+                articuloSeleccionado = null;
+            }
+        }
+
+        // Mostrar información del artículo
+        function mostrarInfoArticulo(articulo) {
+            const infoContainer = document.getElementById('info-articulo');
+            const detalleContainer = document.getElementById('detalle-articulo');
+            
+            detalleContainer.innerHTML = `
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                    <div>
+                        <strong>Código:</strong><br>
+                        <span style="font-size: 1.2em; color: #3498db;">${articulo.codigo}</span>
+                    </div>
+                    <div>
+                        <strong>Nombre:</strong><br>
+                        ${articulo.nombre}
+                    </div>
+                    <div>
+                        <strong>Stock Actual:</strong><br>
+                        <span style="font-size: 1.2em; color: #27ae60;">${articulo.cantidad} ${articulo.unidadMedida}</span>
+                    </div>
+                    <div>
+                        <strong>Descripción:</strong><br>
+                        ${articulo.descripcion || 'Sin descripción'}
+                    </div>
+                </div>
+            `;
+            
+            infoContainer.style.display = 'block';
+            
+            // Actualizar información de unidad
+            document.getElementById('unidad-info').textContent = `Unidad: ${articulo.unidadMedida}`;
+        }
+
+        // Ocultar información del artículo
+        function ocultarInfoArticulo() {
+            document.getElementById('info-articulo').style.display = 'none';
+            document.getElementById('unidad-info').textContent = '';
+        }
+
+        // Toggle motivo personalizado
+        function toggleMotivoCustom() {
+            const select = document.getElementById('motivo-select');
+            const customGroup = document.getElementById('motivo-custom-group');
+            
+            if (select.value === 'custom') {
+                customGroup.style.display = 'block';
+                document.getElementById('motivo-custom').required = true;
+            } else {
+                customGroup.style.display = 'none';
+                document.getElementById('motivo-custom').required = false;
+            }
+        }
+
+        // Actualizar calculadora de inventario
+        function actualizarCalculadora() {
+            const calculadora = document.getElementById('calculadora-stock');
+            const cantidad = parseFloat(document.getElementById('cantidad').value) || 0;
+            
+            if (!articuloSeleccionado) {
+                calculadora.innerHTML = '<p style="color: #666; font-style: italic;">Seleccione un artículo para ver el cálculo del nuevo Inventario</p>';
+                return;
+            }
+            
+            const stockActual = articuloSeleccionado.cantidad;
+            const nuevoStock = stockActual + cantidad;
+            
+            calculadora.innerHTML = `
+                <div style="background: rgba(52, 152, 219, 0.1); padding: 15px; border-radius: 8px; border: 2px dashed #3498db;">
+                    <h4 style="color: #2c3e50; margin-bottom: 10px;">Cálculo de Nuevo Stock</h4>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; text-align: center;">
+                        <div>
+                            <div style="font-size: 1.5em; color: #7f8c8d;">${stockActual}</div>
+                            <small>Stock Actual</small>
+                        </div>
+                        <div style="font-size: 2em; color: #3498db;">+</div>
+                        <div>
+                            <div style="font-size: 1.5em; color: #f39c12;">${cantidad}</div>
+                            <small>Cantidad a Ingresar</small>
+                        </div>
+                        <div style="font-size: 2em; color: #3498db;">=</div>
+                        <div>
+                            <div style="font-size: 1.5em; color: #27ae60; font-weight: bold;">${nuevoStock}</div>
+                            <small>Nuevo Stock</small>
+                        </div>
+                    </div>
+                    <p style="text-align: center; margin-top: 10px; color: #666;">
+                        Unidad: ${articuloSeleccionado.unidadMedida}
+                    </p>
+                </div>
+            `;
+        }
+
+        // Procesar entrada
+        function procesarEntrada(event) {
+            event.preventDefault();
+            
+            const codigo = document.getElementById('codigo-articulo').value.trim().toUpperCase();
+            const cantidad = document.getElementById('cantidad').value;
+            const motivoSelect = document.getElementById('motivo-select').value;
+            const motivoCustom = document.getElementById('motivo-custom').value.trim();
+            
+            const motivo = motivoSelect === 'custom' ? motivoCustom : motivoSelect;
+            
+            if (!articuloSeleccionado) {
+                mostrarAlerta('Debe seleccionar un artículo válido', 'error');
+                return false;
+            }
+            
+            if (entradaMercancia(codigo, cantidad, motivo)) {
+                limpiarFormulario('form-entrada-mercancia');
+                ocultarInfoArticulo();
+                articuloSeleccionado = null;
+                actualizarCalculadora();
+                mostrarEntradasRecientes();
+                
+                // Preguntar si desea registrar otra entrada
+                setTimeout(() => {
+                    if (confirm('¿Desea registrar otra entrada de mercancía?')) {
+                        document.getElementById('codigo-articulo').focus();
+                    } else {
+                        window.location.href = 'index.html';
+                    }
+                }, 1500);
+            }
+            
+            return false;
+        }
+
+        // Mostrar entradas recientes
+        function mostrarEntradasRecientes() {
+            const contenedor = document.getElementById('entradas-recientes');
+            if (!contenedor) return;
+            
+            const entradasRecientes = inventario.movimientos
+                .filter(mov => mov.tipo === 'ENTRADA')
+                .sort((a, b) => new Date(b.fechaHora) - new Date(a.fechaHora))
+                .slice(0, 5);
+            
+            if (entradasRecientes.length === 0) {
+                contenedor.innerHTML = '<p>No hay entradas registradas aún.</p>';
+                return;
+            }
+            
+            let html = '<div style="display: grid; gap: 10px;">';
+            entradasRecientes.forEach(entrada => {
+                const fecha = new Date(entrada.fechaHora).toLocaleString();
+                const articulo = obtenerArticulo(entrada.codigoArticulo);
+                
+                html += `
+                    <div style="padding: 10px; border: 1px solid #27ae60; border-radius: 5px; background: rgba(39, 174, 96, 0.1);">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <strong>📥 ${entrada.codigoArticulo}</strong> - ${articulo ? articulo.nombre : 'Artículo no encontrado'}<br>
+                                <small style="color: #666;">
+                                    Cantidad: ${entrada.cantidad} | ${fecha}
+                                </small><br>
+                                <small style="color: #666;">Motivo: ${entrada.motivo}</small>
+                            </div>
+                            <div style="text-align: right; color: #27ae60; font-weight: bold;">
+                                +${entrada.cantidad}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            
+            contenedor.innerHTML = html;
+        }
+
+        // Event listeners
+        document.getElementById('codigo-articulo').addEventListener('input', function() {
+            this.value = this.value.toUpperCase();
+            
+            // Buscar automáticamente si el código tiene más de 2 caracteres
+            if (this.value.length > 2) {
+                const articulo = obtenerArticulo(this.value);
+                if (articulo) {
+                    mostrarInfoArticulo(articulo);
+                    articuloSeleccionado = articulo;
+                    actualizarCalculadora();
+                } else {
+                    ocultarInfoArticulo();
+                    articuloSeleccionado = null;
+                    actualizarCalculadora();
+                }
+            }
+        });
+
+        document.getElementById('cantidad').addEventListener('input', actualizarCalculadora);
+
+        // Inicialización
+        document.addEventListener('DOMContentLoaded', function() {
+            cargarListaArticulos();
+            mostrarEntradasRecientes();
+            document.getElementById('codigo-articulo').focus();
+        });
+    </script>
+</body>
+</html>
