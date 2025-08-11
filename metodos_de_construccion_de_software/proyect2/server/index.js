@@ -22,6 +22,16 @@ app.get('/empleados', (req, res) => {
 // POST: Agregar empleado
 app.post('/empleados', (req, res) => {
     const { nombre, edad, pais, cargo, anios } = req.body;
+    
+    // Validación de datos
+    if (!nombre || !edad || !pais || !cargo || anios === undefined) {
+        return res.status(400).json({ error: 'Todos los campos son requeridos' });
+    }
+    
+    if (edad < 0 || anios < 0) {
+        return res.status(400).json({ error: 'La edad y años de experiencia deben ser positivos' });
+    }
+    
     const sql = 'INSERT INTO empleados (nombre, edad, pais, cargo, anios) VALUES (?, ?, ?, ?, ?)';
 
     db.query(sql, [nombre, edad, pais, cargo, anios], (err, result) => {
@@ -29,8 +39,8 @@ app.post('/empleados', (req, res) => {
             return res.status(500).json({ error: 'Error al guardar los datos del empleado' });
         }
 
+        // Devolvemos directamente el objeto del empleado con el ID generado
         res.json({
-            message: 'Empleado guardado correctamente',
             id: result.insertId,
             nombre,
             edad,
@@ -45,6 +55,15 @@ app.post('/empleados', (req, res) => {
 app.put('/empleados/:id', (req, res) => {
     const { id } = req.params;
     const { nombre, edad, pais, cargo, anios } = req.body;
+
+    // Validación de datos
+    if (!nombre || !edad || !pais || !cargo || anios === undefined) {
+        return res.status(400).json({ error: 'Todos los campos son requeridos' });
+    }
+    
+    if (edad < 0 || anios < 0) {
+        return res.status(400).json({ error: 'La edad y años de experiencia deben ser positivos' });
+    }
 
     const sql = 'UPDATE empleados SET nombre = ?, edad = ?, pais = ?, cargo = ?, anios = ? WHERE id = ?';
 
